@@ -1,2 +1,3 @@
-# sakin-core
-sakin-csharp'ın halefi, sadece core olarak revize edildi.
+# SAKINCore-CS
+
+[sakin-csharp](https://github.com/kaannsaydamm/sakin-csharp)'ın halefi. Core olarak çalışıyor.
