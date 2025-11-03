@@ -8,11 +8,37 @@ Deployment configurations, scripts, and infrastructure-as-code for the Sakin sec
 
 ## Quick Start
 
-### Start Development Environment
+### Using Automated Tools (Recommended)
+
+The easiest way to set up your development environment:
+
+```bash
+# Navigate to tools directory
+cd tools
+
+# Complete setup (bootstrap + start + initialize)
+make dev-setup
+
+# Or step by step:
+make bootstrap  # First time: setup directories and download GeoIP placeholders
+make up         # Start infrastructure services
+make init       # Initialize services (OpenSearch indices, etc.)
+make test       # Run all tests
+```
+
+**Windows (PowerShell):**
+```powershell
+cd tools
+.\dev-tools.ps1 dev-setup
+```
+
+See [tools/README.md](./tools/README.md) for all available commands.
+
+### Manual Setup
 
 ```bash
 # Start all infrastructure services
-docker compose -f docker compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 
 # Verify all services are healthy
 ./scripts/verify-services.sh
@@ -29,6 +55,8 @@ This directory contains:
 - ✅ Database initialization scripts (PostgreSQL, ClickHouse)
 - ✅ Search engine setup (OpenSearch)
 - ✅ Service verification scripts
+- ✅ Development automation tools (Makefile, PowerShell scripts)
+- ✅ Bootstrap scripts for environment setup
 - 🚧 Kubernetes manifests and Helm charts (planned)
 - 🚧 Infrastructure-as-Code (Terraform, Pulumi, etc.) (planned)
 - 🚧 CI/CD pipeline configurations (planned)
@@ -37,9 +65,15 @@ This directory contains:
 
 ```
 deployments/
-├── docker compose.dev.yml       # ✅ Development environment composition
+├── docker-compose.dev.yml       # ✅ Development environment composition
 ├── DOCKER_SETUP.md              # ✅ Comprehensive setup guide
 ├── README.md                    # This file
+├── tools/                       # ✅ Development automation tools
+│   ├── Makefile                 # ✅ Make targets for Linux/macOS
+│   ├── dev-tools.ps1            # ✅ PowerShell script for Windows
+│   ├── bootstrap.sh             # ✅ Bootstrap script (bash)
+│   ├── bootstrap.ps1            # ✅ Bootstrap script (PowerShell)
+│   └── README.md                # ✅ Tools documentation
 └── scripts/
     ├── postgres/
     │   └── 01-init-database.sql # ✅ PostgreSQL schema initialization
@@ -96,15 +130,23 @@ terraform/                      # Terraform configurations
 │   └── production/
 ```
 
-## Planned Features
-- One-command local development setup
-- Production-ready Kubernetes deployments
-- Auto-scaling configurations
-- Secrets management integration
-- Monitoring and logging stack setup
-- Backup and disaster recovery scripts
-- Blue-green deployment support
-- Health check configurations
+## Features
+
+### Completed
+- ✅ One-command local development setup (`make dev-setup`)
+- ✅ Automated environment bootstrap (GeoIP setup, directory structure)
+- ✅ Cross-platform support (Makefile for Linux/macOS, PowerShell for Windows)
+- ✅ Service health verification
+- ✅ Database initialization scripts
+- ✅ Infrastructure services orchestration
+
+### Planned
+- 🚧 Production-ready Kubernetes deployments
+- 🚧 Auto-scaling configurations
+- 🚧 Secrets management integration
+- 🚧 Monitoring and logging stack setup
+- 🚧 Backup and disaster recovery scripts
+- 🚧 Blue-green deployment support
 
 ## Technologies
 - Docker & Docker Compose

@@ -415,3 +415,14 @@ crash.*.log
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Data directories (ignore contents but keep structure)
+data/*
+!data/.gitkeep
+!data/geoip/
+data/geoip/*
+!data/geoip/README.md
+!data/geoip/*.placeholder
+
+# MaxMind GeoIP databases (ignore actual databases)
+*.mmdb
