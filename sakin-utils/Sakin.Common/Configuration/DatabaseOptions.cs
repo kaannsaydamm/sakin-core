@@ -1,4 +1,4 @@
-namespace Sakin.Core.Sensor.Configuration
+namespace Sakin.Common.Configuration
 {
     public class DatabaseOptions
     {

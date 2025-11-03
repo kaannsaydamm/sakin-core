@@ -11,6 +11,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "services", "services", "{7D
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Core.Sensor", "sakin-core\services\network-sensor\Sakin.Core.Sensor.csproj", "{D23774B0-FD0A-42DA-BDFD-D0C85681119E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sakin-utils", "sakin-utils", "{2B3AF25D-2F79-4019-BADB-CECF58948ECE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Common", "sakin-utils\Sakin.Common\Sakin.Common.csproj", "{BD6B4DBE-8594-498B-AF5E-44C3FFE8948D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Common.Tests", "sakin-utils\Sakin.Common.Tests\Sakin.Common.Tests.csproj", "{8EF34868-41B1-4569-8855-C252950C7DCA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -25,6 +31,14 @@ Global
 		{D23774B0-FD0A-42DA-BDFD-D0C85681119E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D23774B0-FD0A-42DA-BDFD-D0C85681119E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D23774B0-FD0A-42DA-BDFD-D0C85681119E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BD6B4DBE-8594-498B-AF5E-44C3FFE8948D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BD6B4DBE-8594-498B-AF5E-44C3FFE8948D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BD6B4DBE-8594-498B-AF5E-44C3FFE8948D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BD6B4DBE-8594-498B-AF5E-44C3FFE8948D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8EF34868-41B1-4569-8855-C252950C7DCA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8EF34868-41B1-4569-8855-C252950C7DCA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8EF34868-41B1-4569-8855-C252950C7DCA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8EF34868-41B1-4569-8855-C252950C7DCA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -32,5 +46,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{7DC83170-0133-4522-B525-1257E0698264} = {24A0F198-F1BE-430F-8E89-A097DAFD94DB}
 		{D23774B0-FD0A-42DA-BDFD-D0C85681119E} = {7DC83170-0133-4522-B525-1257E0698264}
+		{BD6B4DBE-8594-498B-AF5E-44C3FFE8948D} = {2B3AF25D-2F79-4019-BADB-CECF58948ECE}
+		{8EF34868-41B1-4569-8855-C252950C7DCA} = {2B3AF25D-2F79-4019-BADB-CECF58948ECE}
 	EndGlobalSection
 EndGlobal

@@ -1,26 +1,23 @@
 using System.Text;
 
-namespace Sakin.Core.Sensor.Utils
+namespace Sakin.Common.Utilities
 {
     public static class TLSParser
     {
-        public static (bool, string) ParseTLSClientHello(byte[] payload)
+        public static (bool Success, string Sni) ParseTLSClientHello(byte[] payload)
         {
             if (payload.Length < 5)
             {
-                Console.WriteLine("Payload is too short to be a valid TLS ClientHello");
                 return (false, string.Empty);
             }
 
             if (payload[0] != 0x16)
             {
-                Console.WriteLine("Not a TLS Handshake message");
                 return (false, string.Empty);
             }
 
             if (payload.Length < 43 || payload[5] != 0x01)
             {
-                Console.WriteLine("Not a TLS ClientHello message");
                 return (false, string.Empty);
             }
 
@@ -30,19 +27,15 @@ namespace Sakin.Core.Sensor.Utils
 
             if (payload.Length < offset + helloLength)
             {
-                Console.WriteLine($"Payload length is too short, expected length: {offset + helloLength}, actual length: {payload.Length}");
                 return (false, string.Empty);
             }
 
             offset += 2;
-
             offset += 33;
-
             offset += 2 + payload[offset - 1];
 
             if ((offset - 1) > payload.Length)
             {
-                Console.WriteLine("Index out of range");
                 return (false, string.Empty);
             }
             offset += 1 + payload[offset - 1];
@@ -57,7 +50,6 @@ namespace Sakin.Core.Sensor.Utils
 
                     if (offset + extLength > payload.Length)
                     {
-                        Console.WriteLine("Extension length exceeds available data");
                         return (false, string.Empty);
                     }
 
@@ -66,12 +58,10 @@ namespace Sakin.Core.Sensor.Utils
                         if (offset + extLength <= payload.Length)
                         {
                             string sni = Encoding.ASCII.GetString(payload, offset, extLength);
-                            Console.WriteLine($"Detected SNI: {sni}");
                             return (true, sni);
                         }
                         else
                         {
-                            Console.WriteLine("Invalid SNI extension length");
                             return (false, string.Empty);
                         }
                     }
@@ -80,7 +70,6 @@ namespace Sakin.Core.Sensor.Utils
                 }
             }
 
-            Console.WriteLine("No SNI extension found");
             return (false, string.Empty);
         }
     }

@@ -15,14 +15,22 @@ This directory will contain:
 - Testing utilities and mocks
 
 ## Status
-🚧 **Placeholder** - This component is planned for future implementation.
+✅ **Active** - Sakin.Common library is implemented and in use
 
-## Planned Components
+## Current Components
 
 ### Shared Libraries
-- **sakin-common**: Core data models and interfaces
-- **sakin-config**: Configuration management utilities
-- **sakin-logging**: Structured logging wrappers
+- **✅ Sakin.Common**: Core data models, configuration helpers, utilities, and logging extensions
+  - Normalized event models (NormalizedEvent, NetworkEvent)
+  - Event enums (EventType, Severity, Protocol)
+  - Database configuration and connection factory
+  - String utilities (CleanString, SanitizeInput)
+  - TLS parser for SNI extraction
+  - Logging extensions
+  - Comprehensive unit tests
+
+### Planned Components
+- **sakin-config**: Advanced configuration management utilities
 - **sakin-metrics**: Observability and metrics helpers
 - **sakin-auth**: Authentication/authorization utilities
 

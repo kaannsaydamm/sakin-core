@@ -1,7 +1,7 @@
 using System.Data;
 using Microsoft.Extensions.Options;
 using Npgsql;
-using Sakin.Core.Sensor.Configuration;
+using Sakin.Common.Configuration;
 
 namespace Sakin.Core.Sensor.Handlers
 {
