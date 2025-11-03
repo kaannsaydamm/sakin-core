@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Npgsql;
 using PacketDotNet;
+using Sakin.Common.Utilities;
 using Sakin.Core.Sensor.Handlers;
 using SharpPcap;
 
@@ -14,19 +15,6 @@ namespace Sakin.Core.Sensor.Utils
         public PackageInspector(IDatabaseHandler databaseHandler)
         {
             _databaseHandler = databaseHandler;
-        }
-
-        private static string CleanString(string input)
-        {
-            var cleaned = new StringBuilder();
-            foreach (var c in input)
-            {
-                if (c >= 32 && c <= 126)
-                {
-                    cleaned.Append(c);
-                }
-            }
-            return cleaned.ToString();
         }
 
         public void MonitorTraffic(IEnumerable<ICaptureDevice> interfaces, NpgsqlConnection dbConnection, ManualResetEvent wg)
@@ -86,7 +74,7 @@ namespace Sakin.Core.Sensor.Utils
 
                                     foreach (var domain in validDomains)
                                     {
-                                        string cleanSni = CleanString(domain);
+                                        string cleanSni = StringHelper.CleanString(domain);
                                         Console.WriteLine($"Captured {cleanSni}");
                                         _databaseHandler.SaveSNIAsync(dbConnection, cleanSni, srcIP, dstIP, protocol, timestamp).Wait();
                                     }
@@ -108,7 +96,7 @@ namespace Sakin.Core.Sensor.Utils
                                 //    if (!string.IsNullOrEmpty(sni))
                                 //    {
                                 //        Console.WriteLine($"Captured TLS ClientHello with SNI: {sni}");
-                                //        string cleanSni = CleanString(sni);
+                                //        string cleanSni = StringHelper.CleanString(sni);
                                 //
                                 //        // SNI verisini veritabanına kaydet
                                 //        _databaseHandler.SaveSNIAsync(dbConnection, cleanSni, srcIP, dstIP, protocol, timestamp).Wait();

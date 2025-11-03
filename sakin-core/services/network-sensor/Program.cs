@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Sakin.Core.Sensor.Configuration;
+using Sakin.Common.Configuration;
 using Sakin.Core.Sensor.Handlers;
 using Sakin.Core.Sensor.Services;
 using Sakin.Core.Sensor.Utils;
