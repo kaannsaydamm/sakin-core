@@ -1,0 +1,278 @@
+networks:
+  sakin-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  kafka-data:
+  zookeeper-data:
+  opensearch-data:
+  clickhouse-data:
+
+services:
+  # PostgreSQL - Primary database for network sensor and events
+  postgres:
+    image: postgres:16-alpine
+    container_name: sakin-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_dev_password
+      POSTGRES_DB: network_db
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/postgres:/docker-entrypoint-initdb.d
+    networks:
+      - sakin-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d network_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis - Caching and session storage
+  redis:
+    image: redis:7-alpine
+    container_name: sakin-redis
+    command: redis-server --requirepass redis_dev_password --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - sakin-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Zookeeper - Coordination service for Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: sakin-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+    networks:
+      - sakin-network
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo 'ruok' | nc localhost 2181 | grep imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Kafka - Message broker for event streaming
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: sakin-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - sakin-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # OpenSearch - Search and analytics engine
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: sakin-opensearch
+    environment:
+      - cluster.name=sakin-cluster
+      - node.name=sakin-node
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "DISABLE_SECURITY_PLUGIN=true"
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    networks:
+      - sakin-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"\\(green\\|yellow\\)'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # OpenSearch Dashboards - Visualization (optional)
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.11.0
+    container_name: sakin-opensearch-dashboards
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    environment:
+      - 'OPENSEARCH_HOSTS=["http://opensearch:9200"]'
+      - "DISABLE_SECURITY_DASHBOARDS_PLUGIN=true"
+    ports:
+      - "5601:5601"
+    networks:
+      - sakin-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:5601/api/status | grep -q '\"overall\":{\"level\":\"available\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ClickHouse - OLAP database for analytics
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.11-alpine
+    container_name: sakin-clickhouse
+    environment:
+      CLICKHOUSE_DB: sakin_analytics
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse_dev_password
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "8123:8123"  # HTTP interface
+      - "9000:9000"  # Native interface
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./scripts/clickhouse:/docker-entrypoint-initdb.d
+    networks:
+      - sakin-network
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Network Sensor Service (placeholder - will be built from source)
+  # Uncomment when ready to deploy
+  # network-sensor:
+  #   build:
+  #     context: ../
+  #     dockerfile: sakin-core/services/network-sensor/Dockerfile
+  #   container_name: sakin-network-sensor
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   environment:
+  #     - Database__Host=postgres
+  #     - Database__Port=5432
+  #     - Database__Database=network_db
+  #     - Database__Username=postgres
+  #     - Database__Password=postgres_dev_password
+  #     - ASPNETCORE_ENVIRONMENT=Development
+  #   networks:
+  #     - sakin-network
+  #   network_mode: host  # Required for packet capture
+  #   cap_add:
+  #     - NET_ADMIN
+  #     - NET_RAW
+  #   restart: unless-stopped
+
+  # Ingest Service (placeholder)
+  # Uncomment when ready to deploy
+  # ingest:
+  #   build:
+  #     context: ../
+  #     dockerfile: sakin-ingest/Dockerfile
+  #   container_name: sakin-ingest
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     kafka:
+  #       condition: service_healthy
+  #     opensearch:
+  #       condition: service_healthy
+  #     clickhouse:
+  #       condition: service_healthy
+  #   environment:
+  #     - Database__Host=postgres
+  #     - Database__Port=5432
+  #     - Database__Database=network_db
+  #     - Database__Username=postgres
+  #     - Database__Password=postgres_dev_password
+  #     - Kafka__BootstrapServers=kafka:9092
+  #     - OpenSearch__Url=http://opensearch:9200
+  #     - ClickHouse__Host=clickhouse
+  #     - ClickHouse__Port=8123
+  #     - ClickHouse__Database=sakin_analytics
+  #     - ClickHouse__Username=clickhouse
+  #     - ClickHouse__Password=clickhouse_dev_password
+  #     - ASPNETCORE_ENVIRONMENT=Development
+  #   networks:
+  #     - sakin-network
+  #   restart: unless-stopped
+
+  # Correlation Service (placeholder)
+  # Uncomment when ready to deploy
+  # correlation:
+  #   build:
+  #     context: ../
+  #     dockerfile: sakin-correlation/Dockerfile
+  #   container_name: sakin-correlation
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     kafka:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     opensearch:
+  #       condition: service_healthy
+  #   environment:
+  #     - Database__Host=postgres
+  #     - Database__Port=5432
+  #     - Database__Database=network_db
+  #     - Database__Username=postgres
+  #     - Database__Password=postgres_dev_password
+  #     - Kafka__BootstrapServers=kafka:9092
+  #     - Redis__ConnectionString=redis:6379,password=redis_dev_password
+  #     - OpenSearch__Url=http://opensearch:9200
+  #     - ASPNETCORE_ENVIRONMENT=Development
+  #   networks:
+  #     - sakin-network
+  #   restart: unless-stopped
