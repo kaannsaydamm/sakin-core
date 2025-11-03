@@ -12,8 +12,14 @@ This directory serves as the main documentation hub for:
 - User manuals and tutorials
 - Security and compliance documentation
 
+## Available Documentation
+
+### Configuration
+- **[configuration.md](configuration.md)** - Comprehensive configuration guide covering hierarchy, environment variables, User Secrets, and best practices
+- **[CONFIG_SAMPLES.md](CONFIG_SAMPLES.md)** - Quick reference for configuration samples across all services
+
 ## Status
-🚧 **Placeholder** - Documentation is planned for future implementation.
+🚧 **Placeholder** - Additional documentation is planned for future implementation.
 
 ## Planned Structure
 
