@@ -5,6 +5,12 @@ VisualStudioVersion = 17.12.35527.113 d17.12
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SAKINCore-CS", "SAKINCore-CS\SAKINCore-CS.csproj", "{582E708F-4F22-4517-BDEB-FB9976F60D0D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sakin-core", "sakin-core", "{24A0F198-F1BE-430F-8E89-A097DAFD94DB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "services", "services", "{7DC83170-0133-4522-B525-1257E0698264}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Core.Sensor", "sakin-core\services\network-sensor\Sakin.Core.Sensor.csproj", "{D23774B0-FD0A-42DA-BDFD-D0C85681119E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,8 +21,16 @@ Global
 		{582E708F-4F22-4517-BDEB-FB9976F60D0D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{582E708F-4F22-4517-BDEB-FB9976F60D0D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{582E708F-4F22-4517-BDEB-FB9976F60D0D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D23774B0-FD0A-42DA-BDFD-D0C85681119E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D23774B0-FD0A-42DA-BDFD-D0C85681119E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D23774B0-FD0A-42DA-BDFD-D0C85681119E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D23774B0-FD0A-42DA-BDFD-D0C85681119E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{7DC83170-0133-4522-B525-1257E0698264} = {24A0F198-F1BE-430F-8E89-A097DAFD94DB}
+		{D23774B0-FD0A-42DA-BDFD-D0C85681119E} = {7DC83170-0133-4522-B525-1257E0698264}
 	EndGlobalSection
 EndGlobal
