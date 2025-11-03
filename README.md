@@ -69,7 +69,52 @@ Platform dokümantasyonu.
 
 ## 🚀 Hızlı Başlangıç
 
-### Network Sensor (Aktif)
+### Docker Compose ile Tüm Platform (Önerilen)
+
+**En hızlı yol:** Tüm altyapı servislerini Docker ile başlatın:
+
+1. Repository'yi klonlayın:
+   ```sh
+   git clone https://github.com/kaannsaydamm/sakin-core.git
+   cd sakin-core
+   ```
+
+2. Docker Compose ile altyapıyı başlatın:
+   ```sh
+   cd deployments
+   docker compose -f docker compose.dev.yml up -d
+   ```
+
+3. Servislerin hazır olmasını bekleyin (1-2 dakika):
+   ```sh
+   ./scripts/verify-services.sh
+   ```
+
+4. OpenSearch indekslerini oluşturun:
+   ```sh
+   ./scripts/opensearch/init-indices.sh
+   ```
+
+5. Network sensor'ü çalıştırın:
+   ```sh
+   cd ../sakin-core/services/network-sensor
+   export Database__Host=localhost
+   export Database__Password=postgres_dev_password
+   sudo dotnet run
+   ```
+
+**Başlatılan servisler:**
+- ✅ PostgreSQL (5432) - Veritabanı
+- ✅ Redis (6379) - Cache
+- ✅ Kafka + Zookeeper (9092) - Message queue
+- ✅ OpenSearch (9200) + Dashboards (5601) - Search & analytics
+- ✅ ClickHouse (8123) - OLAP analytics
+
+Detaylı kurulum ve kullanım için: [Docker Setup Guide](./deployments/DOCKER_SETUP.md)
+
+### Manuel Kurulum (Network Sensor)
+
+Docker kullanmadan sadece network sensor'ü çalıştırmak için:
 
 1. Repository'yi klonlayın:
    ```sh
@@ -83,7 +128,14 @@ Platform dokümantasyonu.
    dotnet build SAKINCore-CS.sln
    ```
 
-3. Network sensor'ü çalıştırın:
+3. PostgreSQL veritabanını hazırlayın:
+   ```sh
+   # PostgreSQL'e bağlanın ve veritabanı oluşturun
+   createdb network_db
+   psql network_db < deployments/scripts/postgres/01-init-database.sql
+   ```
+
+4. Network sensor'ü çalıştırın:
    ```sh
    cd sakin-core/services/network-sensor
    dotnet run
@@ -91,24 +143,11 @@ Platform dokümantasyonu.
    
    **Not:** Network yakalama için yükseltilmiş izinler gerekir (sudo/admin).
 
-4. Yapılandırma:
+5. Yapılandırma:
    - `sakin-core/services/network-sensor/appsettings.json` dosyasını düzenleyin
    - Veya environment variable kullanın: `Database__Password="your_password"`
 
 Detaylı kurulum için: [network-sensor README](./sakin-core/services/network-sensor/README.md)
-
-### Tüm Platform (Gelecekte)
-
-Platform tam olarak hazır olduğunda:
-
-```bash
-# Docker Compose ile tüm servisleri başlat
-cd deployments
-docker-compose up -d
-
-# veya Kubernetes ile
-kubectl apply -k kubernetes/overlays/dev
-```
 
 ## 🏛️ Mimari
 

@@ -1,0 +1,71 @@
+# .dockerignore for Sakin Platform
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.vs/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build output
+**/bin/
+**/obj/
+**/out/
+**/TestResults/
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+
+# User-specific files
+*.user
+*.userosscache
+*.suo
+
+# Docker
+**/.dockerignore
+**/docker-compose*.yml
+**/Dockerfile*
+
+# Documentation
+*.md
+!README.md
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+azure-pipelines.yml
+
+# Test files
+**/Tests/
+**/*.Tests/
+**/*Tests.csproj
+
+# Logs
+**/logs/
+*.log
+
+# Secrets
+**/*.pfx
+**/*.p12
+**/secrets.json
+
+# Node modules (if any)
+**/node_modules/
+**/npm-debug.log
+
+# Deployments
+deployments/
+scripts/
+
+# Temporary files
+**/*.tmp
+**/*.temp

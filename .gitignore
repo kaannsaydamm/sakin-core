@@ -391,7 +391,6 @@ yarn-error.log*
 
 # Docker
 docker-compose.override.yml
-.dockerignore
 
 # Terraform (for deployments)
 **/.terraform/*
