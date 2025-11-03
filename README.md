@@ -1,5 +1,9 @@
 # Sakin Security Platform
 
+[![CI](https://github.com/kaannsaydamm/sakin-core/actions/workflows/ci.yml/badge.svg)](https://github.com/kaannsaydamm/sakin-core/actions/workflows/ci.yml)
+[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 [sakin-csharp](https://github.com/kaannsaydamm/sakin-csharp)'ın halefi. Modern, modüler bir güvenlik platformu.
 
 ## 🏗️ Mono-Repo Yapısı
