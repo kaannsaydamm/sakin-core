@@ -1,0 +1,31 @@
+{
+  "eventId": "550e8400-e29b-41d4-a716-446655440004",
+  "receivedAt": "2024-01-15T10:32:00Z",
+  "source": "sensor-01",
+  "sourceType": "network-sensor",
+  "raw": "{\"timestamp\":\"2024-01-15T10:32:00Z\",\"srcIp\":\"192.168.1.100\",\"dstIp\":\"8.8.8.8\",\"protocol\":\"udp\",\"query\":\"example.com\"}",
+  "normalized": {
+    "id": "550e8400-e29b-41d4-a716-446655440005",
+    "timestamp": "2024-01-15T10:32:00Z",
+    "eventType": "dnsQuery",
+    "severity": "info",
+    "sourceIp": "192.168.1.100",
+    "destinationIp": "8.8.8.8",
+    "sourcePort": 54321,
+    "destinationPort": 53,
+    "protocol": "udp",
+    "payload": "DNS query for example.com",
+    "metadata": {
+      "queryType": "A",
+      "queryName": "example.com",
+      "responseCode": "NOERROR"
+    },
+    "deviceName": "sensor-01",
+    "sensorId": "net-sensor-001"
+  },
+  "enrichment": {
+    "dnsCategory": "technology",
+    "reputation": "safe"
+  },
+  "schemaVersion": "v1.0"
+}

@@ -1,0 +1,33 @@
+{
+  "eventId": "550e8400-e29b-41d4-a716-446655440002",
+  "receivedAt": "2024-01-15T10:31:00Z",
+  "source": "win-sensor-02",
+  "sourceType": "windows-eventlog",
+  "raw": "{\"EventTime\":\"2024-01-15T10:31:00Z\",\"EventType\":\"4624\",\"LogonType\":\"2\",\"User\":\"admin\",\"Domain\":\"CONTOSO\"}",
+  "normalized": {
+    "id": "550e8400-e29b-41d4-a716-446655440003",
+    "timestamp": "2024-01-15T10:31:00Z",
+    "eventType": "authenticationAttempt",
+    "severity": "info",
+    "sourceIp": "192.168.1.50",
+    "destinationIp": "192.168.1.10",
+    "sourcePort": null,
+    "destinationPort": null,
+    "protocol": "unknown",
+    "payload": "User admin successfully logged on from workstation WIN-01",
+    "metadata": {
+      "eventId": "4624",
+      "logonType": "2",
+      "username": "admin",
+      "domain": "CONTOSO",
+      "workstation": "WIN-01"
+    },
+    "deviceName": "win-sensor-02",
+    "sensorId": "win-log-002"
+  },
+  "enrichment": {
+    "userRisk": "high",
+    "location": " headquarters"
+  },
+  "schemaVersion": "v1.0"
+}
