@@ -1,0 +1,38 @@
+{
+  "id": "suspicious-dns-query",
+  "name": "Suspicious DNS Query",
+  "description": "Detects DNS queries to known malicious or suspicious domains",
+  "enabled": true,
+  "severity": "high",
+  "triggers": [
+    {
+      "type": "event",
+      "eventType": "dns_query"
+    }
+  ],
+  "conditions": [
+    {
+      "field": "metadata.queryName",
+      "operator": "exists"
+    },
+    {
+      "field": "metadata.queryName",
+      "operator": "regex",
+      "value": ".*(malicious|evil|badsite|phishing|botnet).*"
+    }
+  ],
+  "actions": [
+    {
+      "type": "alert",
+      "parameters": {
+        "title": "Suspicious DNS Query Detected",
+        "message": "Suspicious DNS query from {{source_ip}} to {{metadata.queryName}}"
+      }
+    }
+  ],
+  "metadata": {
+    "category": "network",
+    "mitre_tactic": "Command and Control",
+    "mitre_technique": "Application Layer Protocol: DNS"
+  }
+}

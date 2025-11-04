@@ -2,6 +2,7 @@ using Json.Schema;
 using Microsoft.Extensions.Logging;
 using Sakin.Correlation.Exceptions;
 using Sakin.Correlation.Models;
+using Sakin.Correlation.Parsers;
 using System.Text.Json;
 
 namespace Sakin.Correlation.Validation;
@@ -28,7 +29,16 @@ public class RuleValidator : IRuleValidator
             PropertyNameCaseInsensitive = true,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             WriteIndented = true,
-            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+            Converters =
+            {
+                new SnakeCaseEnumConverter<SeverityLevel>(),
+                new SnakeCaseEnumConverter<TriggerType>(),
+                new SnakeCaseEnumConverter<ConditionOperator>(),
+                new SnakeCaseEnumConverter<AggregationType>(),
+                new SnakeCaseEnumConverter<TimeUnit>(),
+                new SnakeCaseEnumConverter<ActionType>(),
+                new SnakeCaseEnumConverter<BackoffType>()
+            }
         };
     }
 

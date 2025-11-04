@@ -1,0 +1,52 @@
+{
+  "id": "data-exfiltration",
+  "name": "Potential Data Exfiltration",
+  "description": "Detects large outbound data transfers from internal hosts",
+  "enabled": true,
+  "severity": "critical",
+  "triggers": [
+    {
+      "type": "event",
+      "eventType": "network_traffic",
+      "filters": {
+        "protocol": "tcp"
+      }
+    }
+  ],
+  "conditions": [
+    {
+      "field": "source_ip",
+      "operator": "exists"
+    },
+    {
+      "field": "metadata.bytes_sent",
+      "operator": "greater_than",
+      "value": 1000000
+    }
+  ],
+  "aggregation": {
+    "type": "sum",
+    "size": 10,
+    "unit": "minutes",
+    "groupBy": ["source_ip"],
+    "having": {
+      "field": "bytes_sent",
+      "operator": "greater_than_or_equal",
+      "value": 5000000
+    }
+  },
+  "actions": [
+    {
+      "type": "alert",
+      "parameters": {
+        "title": "Potential Data Exfiltration",
+        "message": "Host {{source_ip}} has sent {{count}} suspicious outbound connections"
+      }
+    }
+  ],
+  "metadata": {
+    "category": "data_exfiltration",
+    "mitre_tactic": "Exfiltration",
+    "mitre_technique": "Exfiltration Over Alternative Protocol"
+  }
+}
