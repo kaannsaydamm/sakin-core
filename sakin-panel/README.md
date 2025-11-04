@@ -1,29 +1,22 @@
 # Sakin Panel
 
 ## Overview
-Web-based user interface and dashboard for the Sakin security platform.
+Web-based user interface and dashboard for the Sakin security platform. The
+monorepo now ships both the alert management API and a lightweight frontend for
+reviewing and acknowledging alerts.
 
-## Purpose
-This directory will contain the frontend application that provides:
-- Real-time security dashboard
-- Alert and incident management interface
-- Threat visualization and reporting
-- System configuration and administration
-- User and access management
-- Security analytics and metrics
+## Projects
 
-## Status
-🚧 **Placeholder** - Currently exists as a separate repository.
+- `Sakin.Panel.Api/` &mdash; ASP.NET Core Web API that surfaces correlation alerts
+  and acknowledgement endpoints.
+- `ui/` &mdash; React + TypeScript single-page application powered by Vite that
+  consumes the alert API.
 
-The Sakin Panel is currently maintained as a standalone project at:
-[https://github.com/kaannsaydamm/sakin-panel](https://github.com/kaannsaydamm/sakin-panel)
-
-This placeholder is reserved for future mono-repo integration. The monorepo now
-contains an ASP.NET Core backend (`Sakin.Panel.Api`) that exposes alert listing
-and acknowledgement endpoints backed by the correlation alerts persistence layer.
+## Running Locally
 
 ### Backend API
 Run the API with:
+
 ```bash
 cd sakin-panel/Sakin.Panel.Api
 dotnet run
@@ -33,29 +26,42 @@ Default endpoints:
 - `GET /api/alerts` – paginated alert listing with optional severity filter
 - `POST /api/alerts/{id}/acknowledge` – acknowledges the specified alert
 
-## Current Setup (External Repository)
+The API listens on `http://localhost:5000` by default. Swagger UI is available
+at `http://localhost:5000/swagger` in development builds.
+
+### Frontend UI
+Launch the alert list UI:
+
 ```bash
-git clone https://github.com/kaannsaydamm/sakin-panel.git
-cd sakin-panel
+cd sakin-panel/ui
 npm install
-npm run build
-npm run start
+npm run dev
 ```
 
-Access the panel at: `http://localhost:3000`
+The panel opens on `http://localhost:3000`. Requests to `/api` are proxied to the
+backend during development. To change the API origin, set
+`VITE_API_BASE_URL=http://hostname:port/api` in an `.env.local` file. See
+[`ui/README.md`](./ui/README.md) for additional commands.
 
-## Planned Features
+## Acceptance Criteria Coverage
+
+- ✅ Lists alerts with severity, rule, source, and timestamp details
+- ✅ Acknowledge button calls the acknowledgement endpoint and updates UI state
+- ✅ Loading and error states for data fetching and acknowledgement failures
+- ✅ Vitest + React Testing Library coverage of primary UI flows
+
+## Planned Enhancements
+
 - Real-time event streaming and visualization
-- Interactive threat timeline
-- Network topology mapping
-- Incident investigation tools
+- Advanced filtering, search, and grouping
+- Incident investigation workflow
 - SOAR playbook management UI
-- Custom dashboard creation
-- Reporting and export capabilities
-- Multi-tenancy support
+- Custom dashboards and reporting
+- Authentication and multi-tenancy support
 
-## Technology Stack (Planned)
-- Modern JavaScript framework (React/Next.js/Vue.js)
-- WebSocket for real-time updates
-- RESTful API integration
-- Authentication and authorization (OAuth2/JWT)
+## Technology Stack
+
+- React 18 + TypeScript (Vite)
+- ASP.NET Core 8 Web API
+- Entity Framework Core for persistence
+- Vitest & React Testing Library for UI tests
