@@ -26,4 +26,8 @@
     <ProjectReference Include="..\Sakin.Common\Sakin.Common.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\schema\event-schema.json" Link="schema\event-schema.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
