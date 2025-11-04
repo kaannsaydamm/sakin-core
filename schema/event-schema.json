@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sakin.io/schemas/event-schema.json",
+  "title": "SAKIN Event Schema",
+  "description": "Normalized event schema for security monitoring and analytics",
+  "definitions": {
+    "EventType": {
+      "type": "string",
+      "enum": [
+        "unknown",
+        "networkTraffic",
+        "dnsQuery",
+        "httpRequest",
+        "tlsHandshake",
+        "sshConnection",
+        "fileAccess",
+        "processExecution",
+        "authenticationAttempt",
+        "systemLog",
+        "securityAlert"
+      ],
+      "description": "Type of security event"
+    },
+    "Severity": {
+      "type": "string",
+      "enum": [
+        "unknown",
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "description": "Severity level of the event"
+    },
+    "Protocol": {
+      "type": "string",
+      "enum": [
+        "unknown",
+        "tcp",
+        "udp",
+        "icmp",
+        "http",
+        "https",
+        "dns",
+        "ssh",
+        "ftp",
+        "smtp",
+        "tls"
+      ],
+      "description": "Network protocol"
+    },
+    "NormalizedEvent": {
+      "type": "object",
+      "required": [
+        "id",
+        "timestamp",
+        "eventType",
+        "severity",
+        "sourceIp",
+        "destinationIp",
+        "protocol"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique identifier for the event"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the event occurred (ISO 8601 format)"
+        },
+        "eventType": {
+          "$ref": "#/definitions/EventType"
+        },
+        "severity": {
+          "$ref": "#/definitions/Severity"
+        },
+        "sourceIp": {
+          "type": "string",
+          "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$|^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^$",
+          "description": "Source IP address (IPv4 or IPv6)"
+        },
+        "destinationIp": {
+          "type": "string",
+          "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$|^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^$",
+          "description": "Destination IP address (IPv4 or IPv6)"
+        },
+        "sourcePort": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "maximum": 65535,
+          "description": "Source port number"
+        },
+        "destinationPort": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "maximum": 65535,
+          "description": "Destination port number"
+        },
+        "protocol": {
+          "$ref": "#/definitions/Protocol"
+        },
+        "payload": {
+          "type": ["string", "null"],
+          "description": "Event payload or additional details"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Additional metadata as key-value pairs",
+          "additionalProperties": true
+        },
+        "deviceName": {
+          "type": ["string", "null"],
+          "description": "Name of the device/sensor that captured the event"
+        },
+        "sensorId": {
+          "type": ["string", "null"],
+          "description": "Unique identifier of the sensor"
+        }
+      }
+    },
+    "NetworkEvent": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/NormalizedEvent"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "bytesSent": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of bytes sent"
+            },
+            "bytesReceived": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of bytes received"
+            },
+            "packetCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total packet count"
+            },
+            "sni": {
+              "type": ["string", "null"],
+              "description": "Server Name Indication from TLS handshake"
+            },
+            "httpUrl": {
+              "type": ["string", "null"],
+              "format": "uri",
+              "description": "HTTP/HTTPS URL"
+            },
+            "httpMethod": {
+              "type": ["string", "null"],
+              "enum": ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "TRACE", "CONNECT", null],
+              "description": "HTTP request method"
+            },
+            "httpStatusCode": {
+              "type": ["integer", "null"],
+              "minimum": 100,
+              "maximum": 599,
+              "description": "HTTP response status code"
+            },
+            "userAgent": {
+              "type": ["string", "null"],
+              "description": "HTTP User-Agent header"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "anyOf": [
+    {
+      "$ref": "#/definitions/NormalizedEvent"
+    },
+    {
+      "$ref": "#/definitions/NetworkEvent"
+    }
+  ]
+}

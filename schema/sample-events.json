@@ -1,0 +1,230 @@
+{
+  "sampleEvents": [
+    {
+      "description": "Basic NormalizedEvent - DNS Query",
+      "event": {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "timestamp": "2024-11-04T10:30:00Z",
+        "eventType": "dnsQuery",
+        "severity": "info",
+        "sourceIp": "192.168.1.100",
+        "destinationIp": "8.8.8.8",
+        "sourcePort": 54321,
+        "destinationPort": 53,
+        "protocol": "dns",
+        "payload": "example.com",
+        "metadata": {},
+        "deviceName": "eth0",
+        "sensorId": "sensor-01"
+      }
+    },
+    {
+      "description": "NetworkEvent - HTTPS Traffic with TLS SNI",
+      "event": {
+        "id": "223e4567-e89b-12d3-a456-426614174001",
+        "timestamp": "2024-11-04T10:30:15Z",
+        "eventType": "networkTraffic",
+        "severity": "info",
+        "sourceIp": "192.168.1.100",
+        "destinationIp": "93.184.216.34",
+        "sourcePort": 54322,
+        "destinationPort": 443,
+        "protocol": "https",
+        "bytesSent": 1024,
+        "bytesReceived": 4096,
+        "packetCount": 15,
+        "sni": "example.com",
+        "httpUrl": "https://example.com/api/data",
+        "httpMethod": "GET",
+        "httpStatusCode": 200,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "metadata": {
+          "geoip_country": "US",
+          "geoip_city": "Los Angeles",
+          "asn": 15169,
+          "asn_org": "Google LLC"
+        },
+        "deviceName": "eth0",
+        "sensorId": "sensor-01"
+      }
+    },
+    {
+      "description": "NetworkEvent - HTTP POST Request",
+      "event": {
+        "id": "323e4567-e89b-12d3-a456-426614174002",
+        "timestamp": "2024-11-04T10:31:00Z",
+        "eventType": "httpRequest",
+        "severity": "low",
+        "sourceIp": "192.168.1.101",
+        "destinationIp": "198.51.100.42",
+        "sourcePort": 54323,
+        "destinationPort": 80,
+        "protocol": "http",
+        "bytesSent": 512,
+        "bytesReceived": 2048,
+        "packetCount": 8,
+        "httpUrl": "http://api.example.com/v1/submit",
+        "httpMethod": "POST",
+        "httpStatusCode": 201,
+        "userAgent": "PostmanRuntime/7.32.3",
+        "metadata": {
+          "content_type": "application/json",
+          "response_time_ms": 125
+        },
+        "deviceName": "eth0",
+        "sensorId": "sensor-01"
+      }
+    },
+    {
+      "description": "NetworkEvent - SSH Connection",
+      "event": {
+        "id": "423e4567-e89b-12d3-a456-426614174003",
+        "timestamp": "2024-11-04T10:32:00Z",
+        "eventType": "sshConnection",
+        "severity": "medium",
+        "sourceIp": "203.0.113.15",
+        "destinationIp": "192.168.1.50",
+        "sourcePort": 49152,
+        "destinationPort": 22,
+        "protocol": "ssh",
+        "bytesSent": 256,
+        "bytesReceived": 512,
+        "packetCount": 12,
+        "metadata": {
+          "ssh_version": "SSH-2.0-OpenSSH_8.9",
+          "authentication": "password",
+          "username": "admin"
+        },
+        "deviceName": "eth0",
+        "sensorId": "sensor-01"
+      }
+    },
+    {
+      "description": "NetworkEvent - Security Alert with High Severity",
+      "event": {
+        "id": "523e4567-e89b-12d3-a456-426614174004",
+        "timestamp": "2024-11-04T10:33:00Z",
+        "eventType": "securityAlert",
+        "severity": "high",
+        "sourceIp": "185.220.101.45",
+        "destinationIp": "192.168.1.100",
+        "sourcePort": 45678,
+        "destinationPort": 3389,
+        "protocol": "tcp",
+        "bytesSent": 128,
+        "bytesReceived": 0,
+        "packetCount": 1,
+        "metadata": {
+          "alert_type": "port_scan",
+          "threat_intel": "known_malicious",
+          "tor_exit_node": true,
+          "reputation_score": 95
+        },
+        "deviceName": "eth0",
+        "sensorId": "sensor-01"
+      }
+    },
+    {
+      "description": "NetworkEvent - IPv6 Traffic",
+      "event": {
+        "id": "623e4567-e89b-12d3-a456-426614174005",
+        "timestamp": "2024-11-04T10:34:00Z",
+        "eventType": "networkTraffic",
+        "severity": "info",
+        "sourceIp": "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+        "destinationIp": "2001:4860:4860:0000:0000:0000:0000:8888",
+        "sourcePort": 54324,
+        "destinationPort": 443,
+        "protocol": "https",
+        "bytesSent": 768,
+        "bytesReceived": 3072,
+        "packetCount": 10,
+        "sni": "ipv6.google.com",
+        "metadata": {
+          "ip_version": 6,
+          "flow_label": 12345
+        },
+        "deviceName": "eth0",
+        "sensorId": "sensor-01"
+      }
+    },
+    {
+      "description": "NetworkEvent - TLS Handshake Event",
+      "event": {
+        "id": "723e4567-e89b-12d3-a456-426614174006",
+        "timestamp": "2024-11-04T10:35:00Z",
+        "eventType": "tlsHandshake",
+        "severity": "info",
+        "sourceIp": "192.168.1.100",
+        "destinationIp": "104.16.132.229",
+        "sourcePort": 54325,
+        "destinationPort": 443,
+        "protocol": "tls",
+        "bytesSent": 384,
+        "bytesReceived": 1536,
+        "packetCount": 6,
+        "sni": "www.cloudflare.com",
+        "metadata": {
+          "tls_version": "TLSv1.3",
+          "cipher_suite": "TLS_AES_128_GCM_SHA256",
+          "certificate_valid": true,
+          "certificate_issuer": "DigiCert"
+        },
+        "deviceName": "eth0",
+        "sensorId": "sensor-01"
+      }
+    },
+    {
+      "description": "NetworkEvent - Minimal Required Fields Only",
+      "event": {
+        "id": "823e4567-e89b-12d3-a456-426614174007",
+        "timestamp": "2024-11-04T10:36:00Z",
+        "eventType": "unknown",
+        "severity": "info",
+        "sourceIp": "192.168.1.100",
+        "destinationIp": "192.168.1.1",
+        "protocol": "tcp",
+        "metadata": {}
+      }
+    },
+    {
+      "description": "NetworkEvent - Empty String IPs (Edge Case)",
+      "event": {
+        "id": "923e4567-e89b-12d3-a456-426614174008",
+        "timestamp": "2024-11-04T10:37:00Z",
+        "eventType": "systemLog",
+        "severity": "low",
+        "sourceIp": "",
+        "destinationIp": "",
+        "protocol": "unknown",
+        "metadata": {}
+      }
+    },
+    {
+      "description": "NetworkEvent - All HTTP Methods Example",
+      "event": {
+        "id": "a23e4567-e89b-12d3-a456-426614174009",
+        "timestamp": "2024-11-04T10:38:00Z",
+        "eventType": "httpRequest",
+        "severity": "info",
+        "sourceIp": "192.168.1.100",
+        "destinationIp": "192.168.1.200",
+        "sourcePort": 54326,
+        "destinationPort": 8080,
+        "protocol": "http",
+        "bytesSent": 256,
+        "bytesReceived": 1024,
+        "packetCount": 5,
+        "httpUrl": "http://api.internal.example.com/resource",
+        "httpMethod": "DELETE",
+        "httpStatusCode": 204,
+        "metadata": {
+          "api_version": "v2",
+          "endpoint": "/resource/12345"
+        },
+        "deviceName": "eth1",
+        "sensorId": "sensor-02"
+      }
+    }
+  ]
+}

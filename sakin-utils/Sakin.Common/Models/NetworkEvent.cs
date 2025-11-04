@@ -1,19 +1,36 @@
+using System.Text.Json.Serialization;
+
 namespace Sakin.Common.Models
 {
-    public class NetworkEvent : NormalizedEvent
+    public record NetworkEvent : NormalizedEvent
     {
         public NetworkEvent()
         {
             EventType = EventType.NetworkTraffic;
         }
 
-        public long BytesSent { get; set; }
-        public long BytesReceived { get; set; }
-        public int PacketCount { get; set; }
-        public string? Sni { get; set; }
-        public string? HttpUrl { get; set; }
-        public string? HttpMethod { get; set; }
-        public int? HttpStatusCode { get; set; }
-        public string? UserAgent { get; set; }
+        [JsonPropertyName("bytesSent")]
+        public long BytesSent { get; init; }
+        
+        [JsonPropertyName("bytesReceived")]
+        public long BytesReceived { get; init; }
+        
+        [JsonPropertyName("packetCount")]
+        public int PacketCount { get; init; }
+        
+        [JsonPropertyName("sni")]
+        public string? Sni { get; init; }
+        
+        [JsonPropertyName("httpUrl")]
+        public string? HttpUrl { get; init; }
+        
+        [JsonPropertyName("httpMethod")]
+        public string? HttpMethod { get; init; }
+        
+        [JsonPropertyName("httpStatusCode")]
+        public int? HttpStatusCode { get; init; }
+        
+        [JsonPropertyName("userAgent")]
+        public string? UserAgent { get; init; }
     }
 }
