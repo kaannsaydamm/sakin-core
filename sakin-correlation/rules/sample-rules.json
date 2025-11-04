@@ -1,0 +1,48 @@
+[
+  {
+    "id": "failed-auth-burst",
+    "name": "Multiple Failed Authentications",
+    "description": "Detects multiple failed authentication attempts from the same source",
+    "severity": "High",
+    "enabled": true,
+    "minEventCount": 5,
+    "timeWindowSeconds": 300,
+    "conditions": [
+      {
+        "field": "EventType",
+        "operator": "Equals",
+        "value": "AuthenticationAttempt"
+      }
+    ],
+    "groupByFields": [
+      "SourceIp"
+    ],
+    "tags": [
+      "brute-force",
+      "authentication"
+    ]
+  },
+  {
+    "id": "http-attack-pattern",
+    "name": "HTTP Attack Pattern Detection",
+    "description": "Detects suspicious HTTP requests from the same source",
+    "severity": "High",
+    "enabled": true,
+    "minEventCount": 3,
+    "timeWindowSeconds": 180,
+    "conditions": [
+      {
+        "field": "EventType",
+        "operator": "Equals",
+        "value": "HttpRequest"
+      }
+    ],
+    "groupByFields": [
+      "SourceIp"
+    ],
+    "tags": [
+      "web-attack",
+      "http"
+    ]
+  }
+]
