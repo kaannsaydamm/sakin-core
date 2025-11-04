@@ -16,11 +16,19 @@ public class AlertEntity
 
     public DateTimeOffset TriggeredAt { get; set; }
 
+    public DateTimeOffset FirstSeen { get; set; }
+
+    public DateTimeOffset LastSeen { get; set; }
+
+    public string? GroupKey { get; set; }
+
     public string? Source { get; set; }
 
     public string CorrelationContext { get; set; } = "{}";
 
     public string MatchedConditions { get; set; } = "[]";
+
+    public string Evidence { get; set; } = "[]";
 
     public int? AggregationCount { get; set; }
 
