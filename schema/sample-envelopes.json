@@ -1,0 +1,288 @@
+{
+  "sampleEnvelopes": [
+    {
+      "description": "Basic EventEnvelope with NetworkSensor source",
+      "envelope": {
+        "id": "env-123e4567-e89b-12d3-a456-426614174000",
+        "receivedAt": "2024-11-04T10:30:05Z",
+        "source": "sensor-01",
+        "sourceType": "networkSensor",
+        "raw": {
+          "packet": "raw_packet_data_here",
+          "interface": "eth0",
+          "captureTime": "2024-11-04T10:30:00Z"
+        },
+        "normalized": {
+          "id": "123e4567-e89b-12d3-a456-426614174000",
+          "timestamp": "2024-11-04T10:30:00Z",
+          "eventType": "dnsQuery",
+          "severity": "info",
+          "sourceIp": "192.168.1.100",
+          "destinationIp": "8.8.8.8",
+          "sourcePort": 54321,
+          "destinationPort": 53,
+          "protocol": "dns",
+          "payload": "example.com",
+          "metadata": {},
+          "deviceName": "eth0",
+          "sensorId": "sensor-01"
+        },
+        "enrichment": {
+          "geoip_country": "US",
+          "geoip_city": "New York",
+          "asn": 15169,
+          "asn_org": "Google LLC"
+        },
+        "schemaVersion": "1.0.0",
+        "metadata": {
+          "processingTime": 45,
+          "pipeline": "network-sensor-v1"
+        }
+      }
+    },
+    {
+      "description": "EventEnvelope with HTTPS traffic and security enrichment",
+      "envelope": {
+        "id": "env-223e4567-e89b-12d3-a456-426614174001",
+        "receivedAt": "2024-11-04T10:30:20Z",
+        "source": "sensor-02",
+        "sourceType": "networkSensor",
+        "raw": {
+          "packetCount": 15,
+          "bytes": 5120,
+          "interface": "eth1",
+          "captureTime": "2024-11-04T10:30:15Z"
+        },
+        "normalized": {
+          "id": "223e4567-e89b-12d3-a456-426614174001",
+          "timestamp": "2024-11-04T10:30:15Z",
+          "eventType": "networkTraffic",
+          "severity": "info",
+          "sourceIp": "192.168.1.100",
+          "destinationIp": "93.184.216.34",
+          "sourcePort": 54322,
+          "destinationPort": 443,
+          "protocol": "https",
+          "bytesSent": 1024,
+          "bytesReceived": 4096,
+          "packetCount": 15,
+          "sni": "example.com",
+          "httpUrl": "https://example.com/api/data",
+          "httpMethod": "GET",
+          "httpStatusCode": 200,
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "metadata": {
+            "geoip_country": "US",
+            "geoip_city": "Los Angeles",
+            "asn": 15169,
+            "asn_org": "Google LLC"
+          },
+          "deviceName": "eth0",
+          "sensorId": "sensor-01"
+        },
+        "enrichment": {
+          "geoip_country": "US",
+          "geoip_city": "Los Angeles",
+          "geoip_latitude": 34.0522,
+          "geoip_longitude": -118.2437,
+          "asn": 15169,
+          "asn_org": "Google LLC",
+          "threat_intel": "clean",
+          "reputation_score": 95,
+          "category": "technology"
+        },
+        "schemaVersion": "1.0.0",
+        "metadata": {
+          "processingTime": 78,
+          "pipeline": "network-sensor-v1",
+          "enrichment_applied": ["geoip", "threat_intel", "asn"]
+        }
+      }
+    },
+    {
+      "description": "EventEnvelope with security alert from firewall",
+      "envelope": {
+        "id": "env-523e4567-e89b-12d3-a456-426614174004",
+        "receivedAt": "2024-11-04T10:33:02Z",
+        "source": "firewall-01",
+        "sourceType": "firewall",
+        "raw": {
+          "rule": "BLOCK_SUSPICIOUS_IP",
+          "action": "blocked",
+          "logLevel": "warning",
+          "deviceTime": "2024-11-04T10:33:00Z"
+        },
+        "normalized": {
+          "id": "523e4567-e89b-12d3-a456-426614174004",
+          "timestamp": "2024-11-04T10:33:00Z",
+          "eventType": "securityAlert",
+          "severity": "high",
+          "sourceIp": "185.220.101.45",
+          "destinationIp": "192.168.1.100",
+          "sourcePort": 45678,
+          "destinationPort": 3389,
+          "protocol": "tcp",
+          "bytesSent": 128,
+          "bytesReceived": 0,
+          "packetCount": 1,
+          "metadata": {
+            "alert_type": "port_scan",
+            "threat_intel": "known_malicious",
+            "tor_exit_node": true,
+            "reputation_score": 95
+          },
+          "deviceName": "eth0",
+          "sensorId": "sensor-01"
+        },
+        "enrichment": {
+          "geoip_country": "DE",
+          "geoip_city": "Frankfurt",
+          "tor_exit_node": true,
+          "threat_feeds": ["malware_domains", "botnet_ips"],
+          "reputation_score": 95,
+          "risk_score": 85,
+          "mitre_tactics": ["initial_access"],
+          "mitre_techniques": ["t1190", "t1133"]
+        },
+        "schemaVersion": "1.0.0",
+        "metadata": {
+          "processingTime": 120,
+          "pipeline": "security-alert-v1",
+          "alert_generated": true,
+          "notification_sent": true
+        }
+      }
+    },
+    {
+      "description": "EventEnvelope from log collector with system log",
+      "envelope": {
+        "id": "env-723e4567-e89b-12d3-a456-426614174006",
+        "receivedAt": "2024-11-04T10:35:05Z",
+        "source": "log-collector-01",
+        "sourceType": "logCollector",
+        "raw": {
+          "facility": "auth",
+          "priority": "info",
+          "hostname": "web-server-01",
+          "program": "sshd",
+          "message": "Accepted password for user admin from 203.0.113.15 port 49152 ssh2",
+          "rawLog": "Nov  4 10:35:00 web-server-01 sshd[12345]: Accepted password for user admin from 203.0.113.15 port 49152 ssh2"
+        },
+        "normalized": {
+          "id": "723e4567-e89b-12d3-a456-426614174006",
+          "timestamp": "2024-11-04T10:35:00Z",
+          "eventType": "authenticationAttempt",
+          "severity": "medium",
+          "sourceIp": "203.0.113.15",
+          "destinationIp": "192.168.1.50",
+          "sourcePort": 49152,
+          "destinationPort": 22,
+          "protocol": "ssh",
+          "payload": "Accepted password for user admin",
+          "metadata": {
+            "username": "admin",
+            "authentication_method": "password",
+            "ssh_version": "SSH-2.0-OpenSSH_8.9",
+            "log_facility": "auth"
+          },
+          "deviceName": "web-server-01",
+          "sensorId": "log-collector-01"
+        },
+        "enrichment": {
+          "geoip_country": "US",
+          "geoip_city": "San Francisco",
+          "asn": 64512,
+          "asn_org": "Example Corp",
+          "user_risk_score": 60,
+          "authentication_risk": "medium"
+        },
+        "schemaVersion": "1.0.0",
+        "metadata": {
+          "processingTime": 95,
+          "pipeline": "log-parser-v1",
+          "log_timestamp": "2024-11-04T10:35:00Z",
+          "parse_success": true
+        }
+      }
+    },
+    {
+      "description": "Minimal EventEnvelope with only required fields",
+      "envelope": {
+        "id": "env-823e4567-e89b-12d3-a456-426614174007",
+        "receivedAt": "2024-11-04T10:36:01Z",
+        "source": "unknown-source",
+        "sourceType": "unknown",
+        "normalized": {
+          "id": "823e4567-e89b-12d3-a456-426614174007",
+          "timestamp": "2024-11-04T10:36:00Z",
+          "eventType": "unknown",
+          "severity": "info",
+          "sourceIp": "192.168.1.100",
+          "destinationIp": "192.168.1.1",
+          "protocol": "tcp",
+          "metadata": {}
+        },
+        "schemaVersion": "1.0.0"
+      }
+    },
+    {
+      "description": "EventEnvelope with API Gateway source",
+      "envelope": {
+        "id": "env-923e4567-e89b-12d3-a456-426614174008",
+        "receivedAt": "2024-11-04T10:37:03Z",
+        "source": "api-gateway-prod",
+        "sourceType": "apiGateway",
+        "raw": {
+          "requestId": "req_abc123",
+          "method": "POST",
+          "path": "/api/v1/users",
+          "statusCode": 201,
+          "responseTime": 145,
+          "userAgent": "curl/7.68.0",
+          "clientIp": "198.51.100.42"
+        },
+        "normalized": {
+          "id": "923e4567-e89b-12d3-a456-426614174008",
+          "timestamp": "2024-11-04T10:37:00Z",
+          "eventType": "httpRequest",
+          "severity": "info",
+          "sourceIp": "198.51.100.42",
+          "destinationIp": "192.168.1.200",
+          "sourcePort": 54323,
+          "destinationPort": 443,
+          "protocol": "https",
+          "bytesSent": 512,
+          "bytesReceived": 2048,
+          "packetCount": 8,
+          "httpUrl": "https://api.example.com/v1/users",
+          "httpMethod": "POST",
+          "httpStatusCode": 201,
+          "userAgent": "curl/7.68.0",
+          "metadata": {
+            "api_version": "v1",
+            "endpoint": "/users",
+            "response_time_ms": 145,
+            "request_id": "req_abc123"
+          },
+          "deviceName": "api-gateway-prod",
+          "sensorId": "api-gateway-01"
+        },
+        "enrichment": {
+          "geoip_country": "CA",
+          "geoip_city": "Toronto",
+          "asn": 6327,
+          "asn_org": "Shaw Communications",
+          "api_risk_score": 25,
+          "rate_limit_status": "within_limits"
+        },
+        "schemaVersion": "1.0.0",
+        "metadata": {
+          "processingTime": 67,
+          "pipeline": "api-gateway-v1",
+          "authenticated": true,
+          "user_id": "user_456789"
+        }
+      }
+    }
+  ]
+}
