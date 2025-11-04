@@ -1,0 +1,54 @@
+{
+  "id": "suspicious-file-access",
+  "name": "Suspicious File Access Pattern",
+  "description": "Detects access to sensitive files by unusual users or at unusual times",
+  "enabled": true,
+  "severity": "high",
+  "triggers": [
+    {
+      "type": "event",
+      "eventType": "file_access",
+      "filters": {
+        "sensitivity": "high"
+      }
+    }
+  ],
+  "conditions": [
+    {
+      "field": "file_path",
+      "operator": "regex",
+      "value": ".*(passwords|secrets|keys|certificates).*"
+    },
+    {
+      "field": "user_role",
+      "operator": "not_in",
+      "value": ["administrator", "system", "backup_service"]
+    },
+    {
+      "field": "hour_of_day",
+      "operator": "greater_than_or_equal",
+      "value": 22
+    }
+  ],
+  "actions": [
+    {
+      "type": "alert",
+      "parameters": {
+        "title": "Suspicious File Access Detected",
+        "message": "User {{username}} accessed sensitive file {{file_path}} at unusual time"
+      }
+    },
+    {
+      "type": "email",
+      "parameters": {
+        "recipients": ["security-team@company.com"],
+        "subject": "URGENT: Suspicious File Access"
+      }
+    }
+  ],
+  "metadata": {
+    "category": "data_access",
+    "mitre_tactic": "Collection",
+    "mitre_technique": "Data from Information Repositories"
+  }
+}

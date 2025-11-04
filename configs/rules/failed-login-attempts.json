@@ -1,0 +1,68 @@
+{
+  "id": "failed-login-attempts",
+  "name": "Multiple Failed Login Attempts",
+  "description": "Detects multiple failed login attempts from the same source within a short time window",
+  "enabled": true,
+  "severity": "medium",
+  "triggers": [
+    {
+      "type": "event",
+      "eventType": "authentication_failure",
+      "filters": {
+        "source": "active_directory"
+      }
+    }
+  ],
+  "conditions": [
+    {
+      "field": "username",
+      "operator": "exists"
+    },
+    {
+      "field": "source_ip",
+      "operator": "exists"
+    },
+    {
+      "field": "failure_reason",
+      "operator": "in",
+      "value": ["invalid_password", "account_locked", "account_disabled"]
+    }
+  ],
+  "aggregation": {
+    "type": "count",
+    "size": 5,
+    "unit": "minutes",
+    "groupBy": ["username", "source_ip"],
+    "having": {
+      "field": "count",
+      "operator": "greater_than_or_equal",
+      "value": 3
+    }
+  },
+  "actions": [
+    {
+      "type": "alert",
+      "parameters": {
+        "title": "Multiple Failed Login Attempts Detected",
+        "message": "User {{username}} has failed to login {{count}} times from {{source_ip}} in the last 5 minutes"
+      }
+    },
+    {
+      "type": "webhook",
+      "parameters": {
+        "url": "https://api.security.company.com/alerts",
+        "method": "POST"
+      },
+      "retry": {
+        "attempts": 3,
+        "delay": 1000,
+        "backoff": "exponential"
+      }
+    }
+  ],
+  "metadata": {
+    "category": "authentication",
+    "mitre_tactic": "Credential Access",
+    "mitre_technique": "Brute Force"
+  }
+}
