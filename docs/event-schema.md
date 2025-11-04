@@ -2,7 +2,7 @@
 
 ## Overview
 
-The SAKIN Event Schema defines a normalized data structure for security monitoring events across the entire platform. This schema ensures consistency, interoperability, and proper data validation across all services.
+The SAKIN Event Schema defines a normalized data structure for security monitoring events across the entire platform. This schema ensures consistency, interoperability, and proper data validation across all services. The schema supports both direct normalized events and event envelopes that provide additional metadata, raw data, and enrichment information.
 
 ## Design Principles
 
@@ -11,6 +11,8 @@ The SAKIN Event Schema defines a normalized data structure for security monitori
 3. **Validation**: JSON Schema validation ensures data integrity
 4. **Interoperability**: Standard JSON serialization for cross-service communication
 5. **Type Safety**: Strong typing in C# with comprehensive enum definitions
+6. **Envelope Structure**: Events are wrapped in envelopes containing metadata, raw data, and enrichment
+7. **Versioning**: Schema versioning ensures backward compatibility and evolution support
 
 ## Schema Location
 
@@ -151,7 +153,113 @@ public record NetworkEvent : NormalizedEvent
 }
 ```
 
+## Event Envelope Structure
+
+The `EventEnvelope` provides a wrapper around normalized events, adding metadata, raw data, and enrichment information.
+
+### Properties
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `id` | Guid | Yes | Unique identifier for the envelope (auto-generated) |
+| `receivedAt` | DateTime | Yes | Timestamp when the event was received by the system (auto-generated) |
+| `source` | string | Yes | Source identifier that generated the event |
+| `sourceType` | SourceType | Yes | Type of source that generated the event (enum) |
+| `raw` | object | No | Raw event data as received from the source |
+| `normalized` | NormalizedEvent | Yes | Normalized event data conforming to the event schema |
+| `enrichment` | Dictionary<string, object> | No | Enrichment data added during processing (GeoIP, threat intel, etc.) |
+| `schemaVersion` | string | Yes | Schema version for the normalized event data |
+| `metadata` | Dictionary<string, object> | No | Additional metadata about the envelope or processing |
+
+### C# Definition
+
+```csharp
+public record EventEnvelope
+{
+    public Guid Id { get; init; } = Guid.NewGuid();
+    public DateTime ReceivedAt { get; init; } = DateTime.UtcNow;
+    public string Source { get; init; } = string.Empty;
+    public SourceType SourceType { get; init; } = SourceType.Unknown;
+    public object? Raw { get; init; }
+    public NormalizedEvent Normalized { get; init; } = new NormalizedEvent();
+    public Dictionary<string, object> Enrichment { get; init; } = new();
+    public string SchemaVersion { get; init; } = "1.0.0";
+    public Dictionary<string, object> Metadata { get; init; } = new();
+}
+```
+
+### JSON Example
+
+```json
+{
+  "id": "env-123e4567-e89b-12d3-a456-426614174000",
+  "receivedAt": "2024-11-04T10:30:05Z",
+  "source": "sensor-01",
+  "sourceType": "networkSensor",
+  "raw": {
+    "packet": "raw_packet_data_here",
+    "interface": "eth0",
+    "captureTime": "2024-11-04T10:30:00Z"
+  },
+  "normalized": {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "timestamp": "2024-11-04T10:30:00Z",
+    "eventType": "networkTraffic",
+    "severity": "info",
+    "sourceIp": "192.168.1.100",
+    "destinationIp": "93.184.216.34",
+    "sourcePort": 54322,
+    "destinationPort": 443,
+    "protocol": "https",
+    "bytesSent": 1024,
+    "bytesReceived": 4096,
+    "packetCount": 15,
+    "sni": "example.com",
+    "httpUrl": "https://example.com/api/data",
+    "httpMethod": "GET",
+    "httpStatusCode": 200,
+    "userAgent": "Mozilla/5.0",
+    "metadata": {},
+    "deviceName": "eth0",
+    "sensorId": "sensor-01"
+  },
+  "enrichment": {
+    "geoip_country": "US",
+    "geoip_city": "Los Angeles",
+    "asn": 15169,
+    "asn_org": "Google LLC",
+    "threat_intel": "clean",
+    "reputation_score": 95
+  },
+  "schemaVersion": "1.0.0",
+  "metadata": {
+    "processingTime": 78,
+    "pipeline": "network-sensor-v1",
+    "enrichment_applied": ["geoip", "threat_intel", "asn"]
+  }
+}
+```
+
 ## Enumerations
+
+### SourceType
+
+Defines the type of event source:
+
+| Value | Description |
+|-------|-------------|
+| `Unknown` (0) | Unknown or unclassified source |
+| `NetworkSensor` (1) | Network traffic sensor/capture device |
+| `LogCollector` (2) | Log collection agent |
+| `ApiGateway` (3) | API gateway or web service |
+| `SecurityAgent` (4) | Security agent or EDR |
+| `FileMonitor` (5) | File system monitoring |
+| `ProcessMonitor` (6) | Process monitoring |
+| `DnsCollector` (7) | DNS traffic collector |
+| `WebProxy` (8) | Web proxy server |
+| `Firewall` (9) | Firewall or network security device |
+| `IntrusionDetection` (10) | IDS/IPS system |
+| `EndpointProtection` (11) | Endpoint protection software |
 
 ### EventType
 
@@ -206,7 +314,7 @@ Defines network protocols:
 
 ### Using EventValidator
 
-The `EventValidator` class provides JSON Schema validation for events:
+The `EventValidator` class provides JSON Schema validation for both events and envelopes:
 
 ```csharp
 using Sakin.Common.Validation;
@@ -240,11 +348,99 @@ else
 // Validate JSON string
 var json = """{"id": "...", "timestamp": "...", ...}""";
 var jsonResult = validator.ValidateJson(json);
+
+// Validate event envelope
+var envelope = new EventEnvelope
+{
+    Source = "sensor-01",
+    SourceType = SourceType.NetworkSensor,
+    Normalized = new NetworkEvent
+    {
+        SourceIp = "192.168.1.100",
+        DestinationIp = "8.8.8.8",
+        Protocol = Protocol.HTTPS,
+        BytesSent = 1024
+    }
+};
+
+var envelopeResult = validator.ValidateEnvelope(envelope);
+
+// Validate envelope JSON
+var envelopeJson = """{"id": "...", "receivedAt": "...", "source": "...", ...}""";
+var envelopeJsonResult = validator.ValidateEnvelopeJson(envelopeJson);
 ```
 
-### Serialization and Deserialization
+### Envelope Serialization and Deserialization
 
-The validator provides serialization methods that ensure consistent JSON formatting:
+The validator provides serialization methods for envelopes:
+
+```csharp
+// Serialize envelope to JSON
+var envelope = new EventEnvelope
+{
+    Source = "sensor-01",
+    SourceType = SourceType.NetworkSensor,
+    Normalized = new NetworkEvent
+    {
+        SourceIp = "192.168.1.100",
+        DestinationIp = "8.8.8.8",
+        Protocol = Protocol.TCP
+    }
+};
+
+string envelopeJson = validator.SerializeEnvelope(envelope);
+
+// Deserialize envelope from JSON
+var deserializedEnvelope = validator.DeserializeEnvelope(envelopeJson);
+
+// Verify no data loss
+Assert.Equal(envelope.Source, deserializedEnvelope.Source);
+Assert.Equal(envelope.Normalized.SourceIp, deserializedEnvelope.Normalized.SourceIp);
+```
+
+### Event Envelope Serialization and Versioning
+
+For advanced envelope handling with versioning support, use `EventEnvelopeSerializer`:
+
+```csharp
+using Sakin.Common.Serialization;
+
+var serializer = new EventEnvelopeSerializer();
+
+// Create envelope from event
+var networkEvent = new NetworkEvent
+{
+    SourceIp = "192.168.1.100",
+    DestinationIp = "8.8.8.8",
+    Protocol = Protocol.TCP,
+    BytesSent = 1024
+};
+
+var envelope = serializer.CreateEnvelope(
+    networkEvent,
+    "sensor-01",
+    SourceType.NetworkSensor,
+    raw: new { packetData = "raw_data" },
+    schemaVersion: "1.0.0"
+);
+
+// Serialize with versioning
+string json = serializer.Serialize(envelope);
+
+// Deserialize with version validation
+var deserializedEnvelope = serializer.Deserialize(json, "1.0.0");
+
+// Check version compatibility
+bool isCompatible = serializer.IsVersionCompatible("1.1.0", "1.0.0"); // true
+bool isNotCompatible = serializer.IsVersionCompatible("2.0.0", "1.0.0"); // false
+
+// Get latest supported version
+string latestVersion = serializer.GetLatestVersion();
+```
+
+### Basic Event Serialization and Deserialization
+
+For basic event handling without envelopes:
 
 ```csharp
 // Serialize to JSON
@@ -269,6 +465,8 @@ Assert.Equal(evt.Protocol, deserializedEvent.Protocol);
 
 The JSON Schema enforces the following rules:
 
+### Normalized Event Validation Rules
+
 1. **Required Fields**: `id`, `timestamp`, `eventType`, `severity`, `sourceIp`, `destinationIp`, `protocol`
 2. **UUID Format**: `id` must be a valid UUID
 3. **DateTime Format**: `timestamp` must be ISO 8601 format
@@ -278,9 +476,90 @@ The JSON Schema enforces the following rules:
 7. **HTTP Status Codes**: Must be between 100 and 599
 8. **HTTP Methods**: Must be valid HTTP verbs (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, TRACE, CONNECT)
 
+### Event Envelope Validation Rules
+
+1. **Required Fields**: `id`, `receivedAt`, `source`, `sourceType`, `normalized`, `schemaVersion`
+2. **UUID Format**: `id` must be a valid UUID
+3. **DateTime Format**: `receivedAt` must be ISO 8601 format
+4. **Schema Version**: Must follow semantic versioning pattern (e.g., "1.0.0")
+5. **Source Type**: Must be a valid SourceType enum value
+6. **Normalized Event**: Must conform to NormalizedEvent or NetworkEvent schema
+7. **Enrichment Data**: Must be a valid JSON object if present
+8. **Metadata**: Must be a valid JSON object if present
+
 ## Usage Examples
 
-### Creating Events
+### Creating Event Envelopes
+
+```csharp
+using Sakin.Common.Serialization;
+using Sakin.Common.Models;
+
+var serializer = new EventEnvelopeSerializer();
+
+// Create envelope from network event
+var networkEvent = new NetworkEvent
+{
+    SourceIp = "192.168.1.100",
+    DestinationIp = "93.184.216.34",
+    SourcePort = 54321,
+    DestinationPort = 443,
+    Protocol = Protocol.HTTPS,
+    EventType = EventType.HttpRequest,
+    Severity = Severity.Info,
+    BytesSent = 512,
+    BytesReceived = 2048,
+    PacketCount = 8,
+    HttpUrl = "https://example.com/api",
+    HttpMethod = "GET",
+    HttpStatusCode = 200,
+    UserAgent = "Mozilla/5.0",
+    DeviceName = "eth0",
+    SensorId = "sensor-01"
+};
+
+var envelope = serializer.CreateEnvelope(
+    networkEvent,
+    "sensor-01",
+    SourceType.NetworkSensor,
+    raw: new
+    {
+        interfaceName = "eth0",
+        captureTime = "2024-11-04T10:30:00Z",
+        packetLength = 1024
+    },
+    schemaVersion: "1.0.0"
+);
+
+// Add enrichment data
+envelope.Enrichment.Add("geoip_country", "US");
+envelope.Enrichment.Add("geoip_city", "New York");
+envelope.Enrichment.Add("asn", 15169);
+envelope.Enrichment.Add("threat_intel", "clean");
+
+// Add processing metadata
+envelope.Metadata.Add("processing_time", 45);
+envelope.Metadata.Add("pipeline", "network-sensor-v1");
+
+// Serialize and validate
+var json = serializer.Serialize(envelope);
+var validator = EventValidator.FromFile("/path/to/event-schema.json");
+var validationResult = validator.ValidateEnvelopeJson(json);
+
+if (validationResult.IsValid)
+{
+    Console.WriteLine("Envelope is valid and ready for processing");
+}
+else
+{
+    foreach (var error in validationResult.Errors)
+    {
+        Console.WriteLine($"Validation error: {error}");
+    }
+}
+```
+
+### Creating Basic Events
 
 ```csharp
 // Create a basic normalized event

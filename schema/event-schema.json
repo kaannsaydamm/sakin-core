@@ -2,8 +2,26 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://sakin.io/schemas/event-schema.json",
   "title": "SAKIN Event Schema",
-  "description": "Normalized event schema for security monitoring and analytics",
+  "description": "Event envelope schema for security monitoring and analytics",
   "definitions": {
+    "SourceType": {
+      "type": "string",
+      "enum": [
+        "unknown",
+        "networkSensor",
+        "logCollector",
+        "apiGateway",
+        "securityAgent",
+        "fileMonitor",
+        "processMonitor",
+        "dnsCollector",
+        "webProxy",
+        "firewall",
+        "intrusionDetection",
+        "endpointProtection"
+      ],
+      "description": "Type of event source"
+    },
     "EventType": {
       "type": "string",
       "enum": [
@@ -172,6 +190,64 @@
           }
         }
       ]
+    },
+    "EventEnvelope": {
+      "type": "object",
+      "required": [
+        "id",
+        "receivedAt",
+        "source",
+        "sourceType",
+        "normalized",
+        "schemaVersion"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique identifier for the envelope"
+        },
+        "receivedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the event was received by the system (ISO 8601 format)"
+        },
+        "source": {
+          "type": "string",
+          "description": "Source identifier that generated the event"
+        },
+        "sourceType": {
+          "$ref": "#/definitions/SourceType"
+        },
+        "raw": {
+          "description": "Raw event data as received from the source"
+        },
+        "normalized": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NormalizedEvent"
+            },
+            {
+              "$ref": "#/definitions/NetworkEvent"
+            }
+          ]
+        },
+        "enrichment": {
+          "type": "object",
+          "description": "Enrichment data added during processing (GeoIP, threat intel, etc.)",
+          "additionalProperties": true
+        },
+        "schemaVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Schema version for the normalized event data (semantic versioning)"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Additional metadata about the envelope or processing",
+          "additionalProperties": true
+        }
+      }
     }
   },
   "anyOf": [
@@ -180,6 +256,9 @@
     },
     {
       "$ref": "#/definitions/NetworkEvent"
+    },
+    {
+      "$ref": "#/definitions/EventEnvelope"
     }
   ]
 }

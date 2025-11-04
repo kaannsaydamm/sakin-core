@@ -77,6 +77,55 @@ namespace Sakin.Common.Validation
             return JsonSerializer.Deserialize<T>(json, _serializerOptions);
         }
 
+        public ValidationResult ValidateEnvelope(EventEnvelope envelope)
+        {
+            var json = JsonSerializer.Serialize(envelope, _serializerOptions);
+            var jsonNode = JsonNode.Parse(json);
+            
+            var result = _schema.Evaluate(jsonNode);
+
+            var errors = new List<string>();
+            if (!result.IsValid)
+            {
+                CollectErrors(result, errors);
+            }
+
+            return new ValidationResult
+            {
+                IsValid = result.IsValid,
+                Errors = errors
+            };
+        }
+
+        public ValidationResult ValidateEnvelopeJson(string json)
+        {
+            var jsonNode = JsonNode.Parse(json);
+            
+            var result = _schema.Evaluate(jsonNode);
+
+            var errors = new List<string>();
+            if (!result.IsValid)
+            {
+                CollectErrors(result, errors);
+            }
+
+            return new ValidationResult
+            {
+                IsValid = result.IsValid,
+                Errors = errors
+            };
+        }
+
+        public string SerializeEnvelope(EventEnvelope envelope)
+        {
+            return JsonSerializer.Serialize(envelope, _serializerOptions);
+        }
+
+        public EventEnvelope? DeserializeEnvelope(string json)
+        {
+            return JsonSerializer.Deserialize<EventEnvelope>(json, _serializerOptions);
+        }
+
         private void CollectErrors(EvaluationResults result, List<string> errors)
         {
             if (result.HasErrors)

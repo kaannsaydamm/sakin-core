@@ -33,6 +33,10 @@ namespace Sakin.Core.Sensor
                         context.Configuration.GetSection(DatabaseOptions.SectionName));
 
                     services.AddSingleton<IDatabaseHandler, DatabaseHandler>();
+                    services.AddSingleton<NetworkEventEnvelopeFactory>(provider => 
+                        new NetworkEventEnvelopeFactory(
+                            provider.GetRequiredService<IConfiguration>()["DeviceSettings:DeviceId"] ?? "unknown",
+                            provider.GetRequiredService<IConfiguration>()["DeviceSettings:SensorId"] ?? "sensor-01"));
                     services.AddSingleton<IPackageInspector, PackageInspector>();
 
                     services.AddHostedService<NetworkSensorService>();
