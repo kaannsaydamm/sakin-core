@@ -1,49 +1,51 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using Npgsql;
+using Microsoft.Extensions.Logging;
 using PacketDotNet;
+using Sakin.Common.Models;
 using Sakin.Common.Utilities;
-using Sakin.Core.Sensor.Handlers;
+using Sakin.Core.Sensor.Messaging;
 using SharpPcap;
 
 namespace Sakin.Core.Sensor.Utils
 {
     public class PackageInspector : IPackageInspector
     {
-        private readonly IDatabaseHandler _databaseHandler;
+        private readonly IEventPublisher _publisher;
+        private readonly ILogger<PackageInspector> _logger;
 
-        public PackageInspector(IDatabaseHandler databaseHandler)
+        public PackageInspector(IEventPublisher publisher, ILogger<PackageInspector> logger)
         {
-            _databaseHandler = databaseHandler;
+            _publisher = publisher;
+            _logger = logger;
         }
 
-        public void MonitorTraffic(IEnumerable<ICaptureDevice> interfaces, NpgsqlConnection dbConnection, ManualResetEvent wg)
+        public void MonitorTraffic(IEnumerable<ICaptureDevice> interfaces, ManualResetEvent wg)
         {
             var tasks = new List<Task>();
 
             foreach (var dev in interfaces)
             {
-                Console.WriteLine($"Detected network interface: {dev.Name} - {dev.Description}");
+                _logger.LogInformation("Detected network interface: {Name} - {Description}", dev.Name, dev.Description);
 
                 if (dev.Name.Contains("Loopback"))
                 {
-                    Console.WriteLine($"Skipping loopback network interface: {dev.Name} - {dev.Description}");
+                    _logger.LogInformation("Skipping loopback network interface: {Name} - {Description}", dev.Name, dev.Description);
                     continue;
                 }
 
-                tasks.Add(Task.Run(() => ProcessPackets(dev, dbConnection, wg)));
+                tasks.Add(Task.Run(() => ProcessPackets(dev, wg)));
             }
 
             Task.WhenAll(tasks);
         }
 
-        private void ProcessPackets(ICaptureDevice device, NpgsqlConnection dbConnection, ManualResetEvent wg)
+        private void ProcessPackets(ICaptureDevice device, ManualResetEvent wg)
         {
             try
             {
                 device.Open(DeviceModes.Promiscuous);
-
-                Console.WriteLine($"Successfully opened network interface: {device.Name}");
+                _logger.LogInformation("Successfully opened network interface: {Name}", device.Name);
 
                 device.OnPacketArrival += ((sender, e) =>
                 {
@@ -51,76 +53,50 @@ namespace Sakin.Core.Sensor.Utils
                     {
                         if (ethPacket is IPv4Packet ipPacket)
                         {
-                            DateTime timestamp = DateTime.Now;
+                            var timestamp = DateTime.UtcNow;
                             var srcIP = ipPacket.SourceAddress.ToString();
                             var dstIP = ipPacket.DestinationAddress.ToString();
-                            var protocol = ipPacket.Protocol.ToString();
-                            var protocolEnum = ipPacket.Protocol;
+                            var proto = MapProtocol(ipPacket.Protocol);
+
+                            string? httpUrl = null;
+                            int payloadLength = 0;
 
                             if (e.GetPacket().GetPacket().HasPayloadPacket && e.GetPacket().GetPacket()?.PayloadPacket?.Bytes?.Length > 0)
                             {
-
-                                int? offset = e.GetPacket().GetPacket()?.PayloadPacket?.BytesSegment?.Offset;
                                 byte[] payload = e.GetPacket().GetPacket().PayloadPacket.Bytes;
-                                int? lenght = e.GetPacket()?.GetPacket()?.PayloadPacket?.Bytes?.Length;
-
+                                payloadLength = payload.Length;
                                 string decodedPayload = Encoding.ASCII.GetString(payload);
-
                                 string pattern = @"(https?://[^\s]+|www\.[^\s]+)";
 
                                 if (!string.IsNullOrWhiteSpace(decodedPayload))
                                 {
                                     var validDomains = ExtractValidDomains(decodedPayload, pattern);
 
-                                    foreach (var domain in validDomains)
+                                    // Publish one event per domain found
+                                    if (validDomains.Count > 0)
                                     {
-                                        string cleanSni = StringHelper.CleanString(domain);
-                                        Console.WriteLine($"Captured {cleanSni}");
-                                        _databaseHandler.SaveSNIAsync(dbConnection, cleanSni, srcIP, dstIP, protocol, timestamp).Wait();
+                                        foreach (var domain in validDomains)
+                                        {
+                                            httpUrl = StringHelper.CleanString(domain);
+                                            var evt = CreateNetworkEvent(device, timestamp, srcIP, dstIP, proto, httpUrl, payloadLength);
+                                            _publisher.Enqueue(evt);
+                                        }
+                                        return; // already published events for this packet
                                     }
                                 }
-
-                                // this is for advanced debugging.
-                                //for (int i = 0; i < payload.Length; i++)
-                                //{
-                                //    byte currentByte = payload[i];
-                                //    char currentChar = (char)currentByte;
-                                //    Console.WriteLine($"Byte[{i}]: 0x{currentByte:X2} => Char: '{currentChar}'");
-                                //}
-
-                                //this is will be developed.
-                                // TLS ClientHello paketi varsa, SNI'yi kontrol et
-                                //if (IsTLSClientHello(payload, out string sni, out bool status))
-                                //{
-                                //    if (status == false) return;
-                                //    if (!string.IsNullOrEmpty(sni))
-                                //    {
-                                //        Console.WriteLine($"Captured TLS ClientHello with SNI: {sni}");
-                                //        string cleanSni = StringHelper.CleanString(sni);
-                                //
-                                //        // SNI verisini veritabanına kaydet
-                                //        _databaseHandler.SaveSNIAsync(dbConnection, cleanSni, srcIP, dstIP, protocol, timestamp).Wait();
-                                //    }
-                                //    else
-                                //    {
-                                //        Console.WriteLine("SNI is empty in ClientHello message.");
-                                //    }
-                                //}
-                                //else
-                                //{
-                                //    Console.WriteLine("Captured non-TLS or unsupported message.");
-                                //}
                             }
                             else
                             {
-                                Console.WriteLine($"Captured encrypted HTTPS traffic from {srcIP} to {dstIP}");
+                                _logger.LogDebug("Captured packet without payload from {Src} to {Dst}", srcIP, dstIP);
                             }
 
-                            _databaseHandler.SavePacketAsync(dbConnection, srcIP, dstIP, protocol.ToUpper(), timestamp).Wait();
+                            // Publish a generic network event for the packet
+                            var genericEvt = CreateNetworkEvent(device, timestamp, srcIP, dstIP, proto, httpUrl, payloadLength);
+                            _publisher.Enqueue(genericEvt);
                         }
                         else
                         {
-                            Console.WriteLine("Non-IPv4 packet captured.");
+                            _logger.LogDebug("Non-IPv4 packet captured.");
                         }
                     }
                 });
@@ -129,8 +105,28 @@ namespace Sakin.Core.Sensor.Utils
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error processing packets on {device.Name}: {ex.Message}");
+                _logger.LogError(ex, "Error processing packets on {Device}", device.Name);
             }
+        }
+
+        private static NetworkEvent CreateNetworkEvent(ICaptureDevice device, DateTime timestamp, string srcIP, string dstIP, Protocol protocol, string? httpUrl, int payloadLength)
+        {
+            return new NetworkEvent
+            {
+                Timestamp = timestamp,
+                SourceIp = srcIP,
+                DestinationIp = dstIP,
+                Protocol = protocol,
+                HttpUrl = httpUrl,
+                PacketCount = 1,
+                BytesSent = 0,
+                BytesReceived = payloadLength,
+                DeviceName = device.Name,
+                Metadata = new Dictionary<string, object>
+                {
+                    ["interfaceDescription"] = device.Description ?? string.Empty
+                }
+            };
         }
 
         private static bool IsTLSClientHello(byte[] payload, out string sni, out bool status)
@@ -146,15 +142,23 @@ namespace Sakin.Core.Sensor.Utils
         private static List<string> ExtractValidDomains(string text, string pattern)
         {
             List<string> validDomains = [];
-
             var matches = Regex.Matches(text, pattern);
-
             foreach (Match match in matches)
             {
                 validDomains.Add(match.Value);
             }
-
             return validDomains;
+        }
+
+        private static Protocol MapProtocol(ProtocolType protocolType)
+        {
+            return protocolType switch
+            {
+                ProtocolType.Tcp => Protocol.TCP,
+                ProtocolType.Udp => Protocol.UDP,
+                ProtocolType.Icmp => Protocol.ICMP,
+                _ => Protocol.Unknown
+            };
         }
     }
 }
