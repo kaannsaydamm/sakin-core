@@ -28,6 +28,12 @@ This directory will contain:
   - TLS parser for SNI extraction
   - Logging extensions
   - Comprehensive unit tests
+- **✅ Sakin.Messaging**: Kafka messaging library with producer/consumer abstractions
+  - Kafka producer with batching, compression, retry policies
+  - Kafka consumer with offset management, error handling
+  - JSON message serialization with camelCase support
+  - IOptions-based configuration
+  - Comprehensive unit and integration tests using Testcontainers
 
 ### Planned Components
 - **sakin-config**: Advanced configuration management utilities

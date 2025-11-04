@@ -17,6 +17,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Common", "sakin-utils
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Common.Tests", "sakin-utils\Sakin.Common.Tests\Sakin.Common.Tests.csproj", "{8EF34868-41B1-4569-8855-C252950C7DCA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Messaging", "sakin-utils\Sakin.Messaging\Sakin.Messaging.csproj", "{AED3499E-86C6-4429-9BED-57C9AA89DEC2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Messaging.Tests", "sakin-utils\Sakin.Messaging.Tests\Sakin.Messaging.Tests.csproj", "{B290508A-CB9E-442D-920D-362EE901DCDB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +43,14 @@ Global
 		{8EF34868-41B1-4569-8855-C252950C7DCA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8EF34868-41B1-4569-8855-C252950C7DCA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8EF34868-41B1-4569-8855-C252950C7DCA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AED3499E-86C6-4429-9BED-57C9AA89DEC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AED3499E-86C6-4429-9BED-57C9AA89DEC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AED3499E-86C6-4429-9BED-57C9AA89DEC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AED3499E-86C6-4429-9BED-57C9AA89DEC2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B290508A-CB9E-442D-920D-362EE901DCDB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B290508A-CB9E-442D-920D-362EE901DCDB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B290508A-CB9E-442D-920D-362EE901DCDB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B290508A-CB9E-442D-920D-362EE901DCDB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -48,5 +60,7 @@ Global
 		{D23774B0-FD0A-42DA-BDFD-D0C85681119E} = {7DC83170-0133-4522-B525-1257E0698264}
 		{BD6B4DBE-8594-498B-AF5E-44C3FFE8948D} = {2B3AF25D-2F79-4019-BADB-CECF58948ECE}
 		{8EF34868-41B1-4569-8855-C252950C7DCA} = {2B3AF25D-2F79-4019-BADB-CECF58948ECE}
+		{AED3499E-86C6-4429-9BED-57C9AA89DEC2} = {2B3AF25D-2F79-4019-BADB-CECF58948ECE}
+		{B290508A-CB9E-442D-920D-362EE901DCDB} = {2B3AF25D-2F79-4019-BADB-CECF58948ECE}
 	EndGlobalSection
 EndGlobal
