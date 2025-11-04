@@ -257,6 +257,21 @@ dotnet test tests/Sakin.Correlation.Tests/
 - **Exceptions**: Custom exception types for error handling
 - **Schemas**: JSON Schema definitions for validation
 
+## Alert Persistence
+
+The correlation engine can persist generated alerts to PostgreSQL for downstream processing and audit requirements. Alert persistence is implemented with Entity Framework Core and exposed via `IAlertRepository` in the `Sakin.Correlation.Persistence` namespace.
+
+### Running Migrations
+
+Database schema changes are tracked through EF Core migrations stored in `Persistence/Migrations`. Use the bundled `dotnet-ef` tool to apply the migrations:
+
+```bash
+dotnet tool restore
+dotnet ef database update --project sakin-correlation/Sakin.Correlation --context AlertDbContext
+```
+
+The `Database` section in `appsettings.json` controls the connection string via the shared `DatabaseOptions` configuration model.
+
 ## Dependencies
 
 - `System.Text.Json`: JSON serialization/deserialization
