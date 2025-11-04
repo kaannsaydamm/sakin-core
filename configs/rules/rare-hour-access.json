@@ -1,0 +1,43 @@
+{
+  "id": "rare-hour-access",
+  "name": "Rare Hour Access",
+  "description": "Detects access to sensitive resources during unusual hours",
+  "enabled": true,
+  "severity": "medium",
+  "triggers": [
+    {
+      "type": "event",
+      "eventType": "file_access"
+    }
+  ],
+  "conditions": [
+    {
+      "field": "file_path",
+      "operator": "exists"
+    },
+    {
+      "field": "hour_of_day",
+      "operator": "in",
+      "value": [0, 1, 2, 3, 4, 5, 22, 23]
+    },
+    {
+      "field": "day_of_week",
+      "operator": "not_in",
+      "value": ["Saturday", "Sunday"]
+    }
+  ],
+  "actions": [
+    {
+      "type": "alert",
+      "parameters": {
+        "title": "Unusual Hour Access Detected",
+        "message": "User {{metadata.username}} accessed {{file_path}} at unusual hour {{hour_of_day}}"
+      }
+    }
+  ],
+  "metadata": {
+    "category": "anomaly",
+    "mitre_tactic": "Collection",
+    "mitre_technique": "Data from Local System"
+  }
+}
