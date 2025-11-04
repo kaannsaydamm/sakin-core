@@ -1,16 +1,23 @@
-# Sakin Ingest Service - Dockerfile (Placeholder)
-# This service is not yet implemented
+# Sakin Ingest Service - Dockerfile
 
-FROM mcr.microsoft.com/dotnet/runtime:8.0-alpine
-
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS base
 WORKDIR /app
+EXPOSE 80
 
-# Placeholder: Copy a simple script that logs the service is not ready
-RUN echo '#!/bin/sh' > /app/entrypoint.sh && \
-    echo 'echo "🚧 Sakin Ingest Service - Not yet implemented"' >> /app/entrypoint.sh && \
-    echo 'echo "This service will handle data ingestion and normalization"' >> /app/entrypoint.sh && \
-    echo 'echo "Sleeping to maintain container..."' >> /app/entrypoint.sh && \
-    echo 'sleep infinity' >> /app/entrypoint.sh && \
-    chmod +x /app/entrypoint.sh
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
+WORKDIR /src
+COPY ["Sakin.Ingest.csproj", "./"]
+COPY ["../sakin-utils/Sakin.Common/Sakin.Common.csproj", "../sakin-utils/Sakin.Common/"]
+COPY ["../sakin-utils/Sakin.Messaging/Sakin.Messaging.csproj", "../sakin-utils/Sakin.Messaging/"]
+RUN dotnet restore "./Sakin.Ingest.csproj"
+COPY . .
+WORKDIR "/src/."
+RUN dotnet build "Sakin.Ingest.csproj" -c Release -o /app/build
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+FROM build AS publish
+RUN dotnet publish "Sakin.Ingest.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "Sakin.Ingest.dll"]
