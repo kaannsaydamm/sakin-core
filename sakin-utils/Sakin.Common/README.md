@@ -10,6 +10,7 @@ Sakin.Common provides reusable components to reduce code duplication and ensure 
 
 - **Normalized Event Models**: Standard event structures for security data
 - **Configuration Helpers**: Database connection configuration and management
+- **Redis Cache**: Simple Redis client wrapper for caching operations
 - **String Utilities**: Safe string cleaning and sanitization
 - **TLS Parser**: TLS ClientHello message parsing for SNI extraction
 - **Logging Extensions**: Structured logging helpers
@@ -132,6 +133,58 @@ public class MyService
         {
             // Use the connection
         }
+    }
+}
+```
+
+### Cache
+
+#### Redis Client
+
+Simple Redis client wrapper for basic caching operations:
+
+```csharp
+using Sakin.Common.Cache;
+using Sakin.Common.DependencyInjection;
+
+// In appsettings.json:
+{
+  "Redis": {
+    "ConnectionString": "localhost:6379"
+  }
+}
+
+// In Program.cs:
+services.AddRedisClient();
+services.Configure<RedisOptions>(
+    configuration.GetSection(RedisOptions.SectionName));
+
+// Use in your service:
+public class MyService
+{
+    private readonly IRedisClient _redis;
+    
+    public MyService(IRedisClient redis)
+    {
+        _redis = redis;
+    }
+    
+    public async Task DoWork()
+    {
+        // Set a value
+        await _redis.StringSetAsync("mykey", "myvalue", TimeSpan.FromMinutes(5));
+        
+        // Get a value
+        string? value = await _redis.StringGetAsync("mykey");
+        
+        // Check if key exists
+        bool exists = await _redis.KeyExistsAsync("mykey");
+        
+        // Increment counter
+        long counter = await _redis.IncrementAsync("counter");
+        
+        // Delete key
+        await _redis.KeyDeleteAsync("mykey");
     }
 }
 ```

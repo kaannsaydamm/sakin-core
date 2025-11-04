@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Sakin.Common.Configuration;
+using Sakin.Common.DependencyInjection;
 using Sakin.Core.Sensor.Handlers;
 using Sakin.Core.Sensor.Services;
 using Sakin.Core.Sensor.Utils;
@@ -31,6 +32,11 @@ namespace Sakin.Core.Sensor
                 {
                     services.Configure<DatabaseOptions>(
                         context.Configuration.GetSection(DatabaseOptions.SectionName));
+
+                    // Configure Redis
+                    services.Configure<Sakin.Common.Configuration.RedisOptions>(
+                        context.Configuration.GetSection(Sakin.Common.Configuration.RedisOptions.SectionName));
+                    services.AddRedisClient();
 
                     services.AddSingleton<IDatabaseHandler, DatabaseHandler>();
                     services.AddSingleton<IPackageInspector, PackageInspector>();
