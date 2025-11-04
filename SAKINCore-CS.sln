@@ -21,9 +21,15 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Messaging", "sakin-ut
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Messaging.Tests", "sakin-utils\Sakin.Messaging.Tests\Sakin.Messaging.Tests.csproj", "{B290508A-CB9E-442D-920D-362EE901DCDB}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sakin-panel", "sakin-panel", "{1FBA01DF-9D10-4AB7-BE67-9E012ACBF4CA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Panel.Api", "sakin-panel\Sakin.Panel.Api\Sakin.Panel.Api.csproj", "{2D82F9BA-B6B4-4713-93E4-66C973908F9B}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Correlation", "sakin-correlation\Sakin.Correlation\Sakin.Correlation.csproj", "{C1234567-1234-1234-1234-123456789012}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Correlation.Tests", "tests\Sakin.Correlation.Tests\Sakin.Correlation.Tests.csproj", "{D1234567-1234-1234-1234-123456789012}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Panel.Api.Tests", "tests\Sakin.Panel.Api.Tests\Sakin.Panel.Api.Tests.csproj", "{3E82F9BA-B6B4-4713-93E4-66C973908F9C}"
 EndProject
 Global
     GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -63,6 +69,14 @@ Global
         {D1234567-1234-1234-1234-123456789012}.Debug|Any CPU.Build.0 = Debug|Any CPU
         {D1234567-1234-1234-1234-123456789012}.Release|Any CPU.ActiveCfg = Release|Any CPU
         {D1234567-1234-1234-1234-123456789012}.Release|Any CPU.Build.0 = Release|Any CPU
+        {2D82F9BA-B6B4-4713-93E4-66C973908F9B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {2D82F9BA-B6B4-4713-93E4-66C973908F9B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {2D82F9BA-B6B4-4713-93E4-66C973908F9B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {2D82F9BA-B6B4-4713-93E4-66C973908F9B}.Release|Any CPU.Build.0 = Release|Any CPU
+        {3E82F9BA-B6B4-4713-93E4-66C973908F9C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {3E82F9BA-B6B4-4713-93E4-66C973908F9C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {3E82F9BA-B6B4-4713-93E4-66C973908F9C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {3E82F9BA-B6B4-4713-93E4-66C973908F9C}.Release|Any CPU.Build.0 = Release|Any CPU
     EndGlobalSection
     GlobalSection(SolutionProperties) = preSolution
         HideSolutionNode = FALSE
@@ -74,5 +88,7 @@ Global
         {8EF34868-41B1-4569-8855-C252950C7DCA} = {2B3AF25D-2F79-4019-BADB-CECF58948ECE}
         {AED3499E-86C6-4429-9BED-57C9AA89DEC2} = {2B3AF25D-2F79-4019-BADB-CECF58948ECE}
         {B290508A-CB9E-442D-920D-362EE901DCDB} = {2B3AF25D-2F79-4019-BADB-CECF58948ECE}
+        {2D82F9BA-B6B4-4713-93E4-66C973908F9B} = {1FBA01DF-9D10-4AB7-BE67-9E012ACBF4CA}
+        {3E82F9BA-B6B4-4713-93E4-66C973908F9C} = {1FBA01DF-9D10-4AB7-BE67-9E012ACBF4CA}
     EndGlobalSection
 EndGlobal

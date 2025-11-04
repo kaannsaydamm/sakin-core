@@ -80,6 +80,7 @@ public class AlertRepositoryIntegrationTests : IAsyncLifetime
             RuleId = "failed-login",
             RuleName = "Failed Login Detection",
             Severity = SeverityLevel.High,
+            Status = AlertStatus.New,
             TriggeredAt = DateTimeOffset.UtcNow,
             Source = "integration-test",
             Context = new Dictionary<string, object?>
@@ -136,6 +137,7 @@ public class AlertRepositoryIntegrationTests : IAsyncLifetime
                 RuleId = "recent-high",
                 RuleName = "Recent High Severity",
                 Severity = SeverityLevel.High,
+                Status = AlertStatus.New,
                 TriggeredAt = now.AddMinutes(-2),
                 Context = new Dictionary<string, object?> { ["severityScore"] = 0.9 }
             });
@@ -145,6 +147,7 @@ public class AlertRepositoryIntegrationTests : IAsyncLifetime
                 RuleId = "older-medium",
                 RuleName = "Older Medium Severity",
                 Severity = SeverityLevel.Medium,
+                Status = AlertStatus.New,
                 TriggeredAt = now.AddHours(-2),
                 Context = new Dictionary<string, object?> { ["severityScore"] = 0.5 }
             });
@@ -174,6 +177,7 @@ public class AlertRepositoryIntegrationTests : IAsyncLifetime
                 RuleId = "aggregation-test",
                 RuleName = "Aggregation Test",
                 Severity = SeverityLevel.Critical,
+                Status = AlertStatus.New,
                 TriggeredAt = DateTimeOffset.UtcNow.AddMinutes(-15),
                 Context = new Dictionary<string, object?> { ["count"] = 10 }
             });
@@ -183,6 +187,7 @@ public class AlertRepositoryIntegrationTests : IAsyncLifetime
                 RuleId = "aggregation-test",
                 RuleName = "Aggregation Test",
                 Severity = SeverityLevel.Critical,
+                Status = AlertStatus.New,
                 TriggeredAt = DateTimeOffset.UtcNow.AddMinutes(-5),
                 Context = new Dictionary<string, object?> { ["count"] = 25 }
             });

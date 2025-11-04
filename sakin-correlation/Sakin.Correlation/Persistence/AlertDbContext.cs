@@ -36,6 +36,11 @@ public class AlertDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(32);
 
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasMaxLength(32)
+                .HasDefaultValue("new");
+
             entity.Property(e => e.TriggeredAt)
                 .IsRequired();
 
@@ -62,6 +67,9 @@ public class AlertDbContext : DbContext
 
             entity.HasIndex(e => e.Severity)
                 .HasDatabaseName("ix_alerts_severity");
+
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("ix_alerts_status");
 
             entity.HasIndex(e => e.TriggeredAt)
                 .HasDatabaseName("ix_alerts_triggered_at");

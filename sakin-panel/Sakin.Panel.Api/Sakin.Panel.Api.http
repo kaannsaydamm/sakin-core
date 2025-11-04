@@ -1,0 +1,6 @@
+@Sakin.Panel.Api_HostAddress = http://localhost:5298
+
+GET {{Sakin.Panel.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

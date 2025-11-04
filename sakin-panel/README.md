@@ -18,7 +18,20 @@ This directory will contain the frontend application that provides:
 The Sakin Panel is currently maintained as a standalone project at:
 [https://github.com/kaannsaydamm/sakin-panel](https://github.com/kaannsaydamm/sakin-panel)
 
-This placeholder is reserved for future mono-repo integration.
+This placeholder is reserved for future mono-repo integration. The monorepo now
+contains an ASP.NET Core backend (`Sakin.Panel.Api`) that exposes alert listing
+and acknowledgement endpoints backed by the correlation alerts persistence layer.
+
+### Backend API
+Run the API with:
+```bash
+cd sakin-panel/Sakin.Panel.Api
+dotnet run
+```
+
+Default endpoints:
+- `GET /api/alerts` – paginated alert listing with optional severity filter
+- `POST /api/alerts/{id}/acknowledge` – acknowledges the specified alert
 
 ## Current Setup (External Repository)
 ```bash
