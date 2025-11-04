@@ -1,0 +1,24 @@
+{
+  "id": "invalid-rule-example",
+  "name": "This is an invalid rule for testing",
+  "description": "This rule has validation errors",
+  "enabled": true,
+  "severity": "invalid_severity",
+  "triggers": [
+    {
+      "type": "event"
+    }
+  ],
+  "conditions": [
+    {
+      "field": "",
+      "operator": "equals",
+      "value": "test"
+    }
+  ],
+  "aggregation": {
+    "type": "time_window",
+    "size": -1,
+    "unit": "invalid_unit"
+  }
+}
