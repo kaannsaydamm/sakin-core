@@ -12,6 +12,8 @@ public class AlertEntity
 
     public string Severity { get; set; } = string.Empty;
 
+    public string Status { get; set; } = "new";
+
     public DateTimeOffset TriggeredAt { get; set; }
 
     public string? Source { get; set; }

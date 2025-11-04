@@ -112,6 +112,66 @@ public class AlertRepository : IAlertRepository
         return entities.Select(MapToModel).ToList();
     }
 
+    public async Task<(IReadOnlyList<AlertRecord> Alerts, int TotalCount)> GetAlertsAsync(
+        int page = 1,
+        int pageSize = 50,
+        SeverityLevel? severity = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (page <= 0)
+        {
+            page = 1;
+        }
+
+        if (pageSize <= 0)
+        {
+            pageSize = 50;
+        }
+
+        var query = _context.Alerts.AsNoTracking();
+
+        if (severity is not null)
+        {
+            var severityValue = ToSeverityString(severity.Value);
+            query = query.Where(a => a.Severity == severityValue);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var entities = await query
+            .OrderByDescending(a => a.TriggeredAt)
+            .ThenByDescending(a => a.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (entities.Select(MapToModel).ToList(), totalCount);
+    }
+
+    public async Task<AlertRecord?> UpdateStatusAsync(
+        Guid id,
+        AlertStatus status,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await _context.Alerts.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+
+        if (entity is null)
+        {
+            return null;
+        }
+
+        var newStatus = ToStatusString(status);
+
+        if (!string.Equals(entity.Status, newStatus, StringComparison.OrdinalIgnoreCase))
+        {
+            entity.Status = newStatus;
+            entity.UpdatedAt = DateTimeOffset.UtcNow;
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        return MapToModel(entity);
+    }
+
     private static AlertEntity MapToEntity(AlertRecord alert)
     {
         return new AlertEntity
@@ -120,6 +180,7 @@ public class AlertRepository : IAlertRepository
             RuleId = alert.RuleId,
             RuleName = alert.RuleName,
             Severity = ToSeverityString(alert.Severity),
+            Status = ToStatusString(alert.Status),
             TriggeredAt = alert.TriggeredAt,
             Source = alert.Source,
             CorrelationContext = SerializeContext(alert.Context),
@@ -139,6 +200,7 @@ public class AlertRepository : IAlertRepository
             RuleId = entity.RuleId,
             RuleName = entity.RuleName,
             Severity = ParseSeverity(entity.Severity),
+            Status = ParseStatus(entity.Status),
             TriggeredAt = entity.TriggeredAt,
             Source = entity.Source,
             Context = DeserializeContext(entity.CorrelationContext),
@@ -155,6 +217,12 @@ public class AlertRepository : IAlertRepository
 
     private static SeverityLevel ParseSeverity(string? value)
         => Enum.TryParse<SeverityLevel>(value, true, out var result) ? result : SeverityLevel.Low;
+
+    private static string ToStatusString(AlertStatus status)
+        => status.ToString().ToLowerInvariant();
+
+    private static AlertStatus ParseStatus(string? value)
+        => Enum.TryParse<AlertStatus>(value, true, out var result) ? result : AlertStatus.New;
 
     private static string SerializeContext(Dictionary<string, object?>? context)
     {

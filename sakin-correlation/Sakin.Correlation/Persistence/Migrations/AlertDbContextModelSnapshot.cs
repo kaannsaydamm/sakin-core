@@ -71,6 +71,13 @@ partial class AlertDbContextModelSnapshot : ModelSnapshot
                 .HasColumnType("character varying(32)")
                 .HasColumnName("severity");
 
+            b.Property<string>("Status")
+                .IsRequired()
+                .HasMaxLength(32)
+                .HasColumnType("character varying(32)")
+                .HasColumnName("status")
+                .HasDefaultValue("new");
+
             b.Property<string>("Source")
                 .HasMaxLength(128)
                 .HasColumnType("character varying(128)")
@@ -90,6 +97,9 @@ partial class AlertDbContextModelSnapshot : ModelSnapshot
 
             b.HasIndex("Severity")
                 .HasDatabaseName("ix_alerts_severity");
+
+            b.HasIndex("Status")
+                .HasDatabaseName("ix_alerts_status");
 
             b.HasIndex("TriggeredAt")
                 .HasDatabaseName("ix_alerts_triggered_at");

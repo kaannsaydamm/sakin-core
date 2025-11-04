@@ -14,6 +14,8 @@ public class AlertRecord
 
     public SeverityLevel Severity { get; set; }
 
+    public AlertStatus Status { get; set; }
+
     public DateTimeOffset TriggeredAt { get; set; }
 
     public string? Source { get; set; }

@@ -22,4 +22,15 @@ public interface IAlertRepository
         string ruleId,
         int limit = 100,
         CancellationToken cancellationToken = default);
+
+    Task<(IReadOnlyList<AlertRecord> Alerts, int TotalCount)> GetAlertsAsync(
+        int page = 1,
+        int pageSize = 50,
+        SeverityLevel? severity = null,
+        CancellationToken cancellationToken = default);
+
+    Task<AlertRecord?> UpdateStatusAsync(
+        Guid id,
+        AlertStatus status,
+        CancellationToken cancellationToken = default);
 }
