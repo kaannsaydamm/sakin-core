@@ -1,0 +1,33 @@
+{
+  "eventId": "550e8400-e29b-41d4-a716-446655440000",
+  "receivedAt": "2024-01-15T10:30:00Z",
+  "source": "sensor-01",
+  "sourceType": "network-sensor",
+  "raw": "{\"timestamp\":\"2024-01-15T10:30:00Z\",\"srcIp\":\"192.168.1.100\",\"dstIp\":\"203.0.113.1\",\"protocol\":\"tcp\",\"bytes\":1024}",
+  "normalized": {
+    "id": "550e8400-e29b-41d4-a716-446655440001",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "eventType": "networkTraffic",
+    "severity": "info",
+    "sourceIp": "192.168.1.100",
+    "destinationIp": "203.0.113.1",
+    "sourcePort": 45123,
+    "destinationPort": 443,
+    "protocol": "tcp",
+    "payload": null,
+    "metadata": {
+      "interface": "eth0",
+      "captureMethod": "pcap"
+    },
+    "deviceName": "sensor-01",
+    "sensorId": "net-sensor-001"
+  },
+  "enrichment": {
+    "geoLocation": {
+      "country": "US",
+      "city": "New York"
+    },
+    "asn": "AS15169 Google LLC"
+  },
+  "schemaVersion": "v1.0"
+}

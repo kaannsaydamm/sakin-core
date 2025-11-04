@@ -358,6 +358,106 @@ var evt = new NetworkEvent
 };
 ```
 
+## Event Envelope
+
+The `EventEnvelope` wraps normalized events with additional metadata for processing, tracking, and enrichment.
+
+### Properties
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `eventId` | Guid | Yes | Unique identifier for the envelope (auto-generated) |
+| `receivedAt` | DateTimeOffset | Yes | UTC timestamp when the event was received (auto-generated) |
+| `source` | string | Yes | Source identifier (e.g., "sensor-01") |
+| `sourceType` | string | Yes | Type of source (e.g., "network-sensor", "windows-eventlog") |
+| `raw` | string | Yes | Original raw payload from the source |
+| `normalized` | NormalizedEvent? | No | Normalized event object |
+| `enrichment` | Dictionary<string, object> | No | Enrichment data (GeoIP, threat intelligence, etc.) |
+| `schemaVersion` | string | Yes | Schema version (default: "v1.0") |
+
+### C# Definition
+
+```csharp
+public record EventEnvelope
+{
+    public Guid EventId { get; init; } = Guid.NewGuid();
+    public DateTimeOffset ReceivedAt { get; init; } = DateTimeOffset.UtcNow;
+    public string Source { get; init; } = string.Empty;
+    public string SourceType { get; init; } = string.Empty;
+    public string Raw { get; init; } = string.Empty;
+    public NormalizedEvent? Normalized { get; init; }
+    public Dictionary<string, object> Enrichment { get; init; } = new();
+    public string SchemaVersion { get; init; } = "v1.0";
+}
+```
+
+### Usage Example
+
+```csharp
+// Create an event envelope
+var envelope = new EventEnvelope
+{
+    Source = "sensor-01",
+    SourceType = "network-sensor",
+    Raw = "{\"timestamp\":\"2024-01-15T10:30:00Z\",\"srcIp\":\"192.168.1.100\"}",
+    Normalized = new NetworkEvent
+    {
+        EventType = EventType.NetworkTraffic,
+        Severity = Severity.Info,
+        SourceIp = "192.168.1.100",
+        DestinationIp = "203.0.113.1",
+        Protocol = Protocol.TCP,
+        BytesSent = 1024,
+        BytesReceived = 2048,
+        PacketCount = 5
+    },
+    Enrichment = new Dictionary<string, object>
+    {
+        ["geoLocation"] = new { country = "US", city = "New York" },
+        ["asn"] = 15169,
+        ["threatIntel"] = "clean"
+    }
+};
+
+// Serialize to JSON
+var json = EventEnvelopeSerializer.Serialize(envelope);
+
+// Deserialize from JSON
+var deserialized = EventEnvelopeSerializer.Deserialize(json);
+```
+
+### Serialization
+
+The `EventEnvelopeSerializer` provides utilities for JSON serialization/deserialization:
+
+```csharp
+// Serialize envelope
+var json = EventEnvelopeSerializer.Serialize(envelope);
+
+// Deserialize envelope
+var envelope = EventEnvelopeSerializer.Deserialize(json);
+
+// Try deserialize (safe)
+if (EventEnvelopeSerializer.TryDeserialize(json, out var envelope))
+{
+    // Process envelope
+}
+
+// Serialize normalized event
+var normalizedJson = EventEnvelopeSerializer.SerializeNormalized(normalizedEvent);
+
+// Deserialize to specific type
+var networkEvent = EventEnvelopeSerializer.DeserializeNormalized<NetworkEvent>(json);
+```
+
+### Sample Envelopes
+
+Sample event envelopes are available in `/tests/fixtures/`:
+
+- `event-envelope-network.json` - Network traffic event
+- `event-envelope-auth.json` - Authentication event  
+- `event-envelope-dns.json` - DNS query event
+
 ## Testing
 
 Comprehensive tests are available in `/sakin-utils/Sakin.Common.Tests/Validation/`:
