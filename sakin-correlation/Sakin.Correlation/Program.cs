@@ -4,6 +4,11 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sakin.Correlation;
 using Sakin.Correlation.Configuration;
+using Sakin.Correlation.Engine;
+using Sakin.Correlation.Parsers;
+using Sakin.Correlation.Persistence.DependencyInjection;
+using Sakin.Correlation.Services;
+using Sakin.Correlation.Validation;
 using Sakin.Messaging.Configuration;
 using Sakin.Messaging.Consumer;
 using Sakin.Messaging.Serialization;
@@ -18,7 +23,9 @@ var host = Host.CreateDefaultBuilder(args)
     {
         IConfiguration configuration = context.Configuration;
 
+        // Configure Kafka worker options
         services.Configure<KafkaWorkerOptions>(configuration.GetSection(KafkaWorkerOptions.SectionName));
+        services.Configure<RulesOptions>(configuration.GetSection(RulesOptions.SectionName));
 
         services.Configure<KafkaOptions>(options =>
         {
@@ -55,8 +62,26 @@ var host = Host.CreateDefaultBuilder(args)
             options.EnableAutoCommit = true;
         });
 
+        // Add correlation persistence services
+        services.AddCorrelationPersistence(configuration);
+
+        // Add correlation engine services
+        services.AddSingleton<IRuleEvaluator, RuleEvaluator>();
+        
+        // Add parser and validation services
+        services.AddSingleton<IRuleValidator, RuleValidator>();
+        services.AddSingleton<IRuleParser, RuleParser>();
+        
+        // Add business services
+        services.AddSingleton<IRuleLoaderService, RuleLoaderService>();
+        services.AddSingleton<IAlertCreatorService, AlertCreatorService>();
+
+        // Add messaging services
         services.AddSingleton<IMessageSerializer, JsonMessageSerializer>();
         services.AddSingleton<IKafkaConsumer, KafkaConsumer>();
+        
+        // Add hosted services (order matters - rule loader should start before worker)
+        services.AddHostedService<RuleLoaderService>();
         services.AddHostedService<Worker>();
     })
     .Build();

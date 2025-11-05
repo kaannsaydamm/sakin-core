@@ -1,0 +1,36 @@
+{
+  "id": "simple-failed-login",
+  "name": "Failed Login Detection",
+  "description": "Simple stateless rule to detect failed login attempts",
+  "enabled": true,
+  "severity": "medium",
+  "triggers": [
+    {
+      "type": "event",
+      "eventType": "authentication_failure",
+      "filters": {
+        "source_type": "windows-eventlog"
+      }
+    }
+  ],
+  "conditions": [
+    {
+      "field": "normalized.action",
+      "operator": "equals",
+      "value": "login_failed"
+    }
+  ],
+  "actions": [
+    {
+      "type": "alert",
+      "parameters": {
+        "title": "Failed Login Detected",
+        "message": "Failed login detected from {{source_ip}}"
+      }
+    }
+  ],
+  "metadata": {
+    "category": "authentication",
+    "test": "stateless"
+  }
+}
