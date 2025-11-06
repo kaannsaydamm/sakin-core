@@ -2,6 +2,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Sakin.Common.Configuration;
+using Sakin.Common.DependencyInjection;
 using Sakin.Ingest.Configuration;
 using Sakin.Ingest.Parsers;
 using Sakin.Ingest.Services;
@@ -33,6 +35,8 @@ var host = Host.CreateDefaultBuilder(args)
         services.Configure<KafkaOptions>(configuration.GetSection(KafkaOptions.SectionName));
         services.Configure<IngestKafkaOptions>(configuration.GetSection(IngestKafkaOptions.SectionName));
         services.Configure<GeoIpOptions>(configuration.GetSection(GeoIpOptions.SectionName));
+        services.Configure<ThreatIntelOptions>(configuration.GetSection(ThreatIntelOptions.SectionName));
+        services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
 
         services.AddOptions<ConsumerOptions>()
             .Configure<IConfiguration>((options, config) =>
@@ -61,6 +65,8 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IMessageSerializer, JsonMessageSerializer>();
         services.AddSingleton<IKafkaProducer, KafkaProducer>();
         services.AddSingleton<IKafkaConsumer, KafkaConsumer>();
+
+        services.AddRedisClient();
 
         // Add memory caching with size limit
         services.AddMemoryCache(options =>
