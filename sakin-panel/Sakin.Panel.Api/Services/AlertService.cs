@@ -1,5 +1,6 @@
 using Sakin.Correlation.Models;
 using Sakin.Correlation.Persistence.Repositories;
+using Sakin.Correlation.Services;
 using Sakin.Panel.Api.Models;
 
 namespace Sakin.Panel.Api.Services;
@@ -7,10 +8,14 @@ namespace Sakin.Panel.Api.Services;
 public class AlertService : IAlertService
 {
     private readonly IAlertRepository _alertRepository;
+    private readonly IAlertLifecycleService _lifecycleService;
 
-    public AlertService(IAlertRepository alertRepository)
+    public AlertService(
+        IAlertRepository alertRepository,
+        IAlertLifecycleService lifecycleService)
     {
         _alertRepository = alertRepository;
+        _lifecycleService = lifecycleService;
     }
 
     public async Task<PaginatedResponse<AlertResponse>> GetAlertsAsync(
@@ -60,6 +65,59 @@ public class AlertService : IAlertService
         CancellationToken cancellationToken = default)
     {
         var alert = await _alertRepository.UpdateStatusAsync(id, AlertStatus.Acknowledged, cancellationToken);
+        return alert is null ? null : AlertResponse.FromRecord(alert);
+    }
+
+    public async Task<AlertResponse?> UpdateStatusAsync(
+        Guid id,
+        AlertStatus status,
+        string? comment = null,
+        string? user = null,
+        CancellationToken cancellationToken = default)
+    {
+        var alert = await _lifecycleService.TransitionStatusAsync(id, status, comment, user, cancellationToken);
+        return alert is null ? null : AlertResponse.FromRecord(alert);
+    }
+
+    public async Task<AlertResponse?> StartInvestigationAsync(
+        Guid id,
+        string? comment = null,
+        string? user = null,
+        CancellationToken cancellationToken = default)
+    {
+        var alert = await _lifecycleService.StartInvestigationAsync(id, comment, user, cancellationToken);
+        return alert is null ? null : AlertResponse.FromRecord(alert);
+    }
+
+    public async Task<AlertResponse?> ResolveAsync(
+        Guid id,
+        string? reason = null,
+        string? comment = null,
+        string? user = null,
+        CancellationToken cancellationToken = default)
+    {
+        var alert = await _lifecycleService.ResolveAsync(id, reason, comment, user, cancellationToken);
+        return alert is null ? null : AlertResponse.FromRecord(alert);
+    }
+
+    public async Task<AlertResponse?> CloseAsync(
+        Guid id,
+        string? comment = null,
+        string? user = null,
+        CancellationToken cancellationToken = default)
+    {
+        var alert = await _lifecycleService.CloseAsync(id, comment, user, cancellationToken);
+        return alert is null ? null : AlertResponse.FromRecord(alert);
+    }
+
+    public async Task<AlertResponse?> MarkFalsePositiveAsync(
+        Guid id,
+        string? reason = null,
+        string? comment = null,
+        string? user = null,
+        CancellationToken cancellationToken = default)
+    {
+        var alert = await _lifecycleService.MarkFalsePositiveAsync(id, reason, comment, user, cancellationToken);
         return alert is null ? null : AlertResponse.FromRecord(alert);
     }
 }

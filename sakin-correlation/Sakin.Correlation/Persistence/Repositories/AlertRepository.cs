@@ -52,6 +52,10 @@ public class AlertRepository : IAlertRepository
             entity.TriggeredAt = entity.CreatedAt;
         }
 
+        entity.FirstSeen = now;
+        entity.LastSeen = now;
+        entity.AlertCount = 1;
+
         await _context.Alerts.AddAsync(entity, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -205,6 +209,52 @@ public class AlertRepository : IAlertRepository
         return entity;
     }
 
+    public async Task<AlertRecord?> IncrementDedupAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await _context.Alerts.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+
+        if (entity is null)
+        {
+            return null;
+        }
+
+        entity.AlertCount++;
+        entity.LastSeen = DateTimeOffset.UtcNow;
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return MapToModel(entity);
+    }
+
+    public async Task<AlertRecord?> GetByDedupKeyAsync(
+        string dedupKey,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(dedupKey);
+
+        var entity = await _context.Alerts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.DedupKey == dedupKey, cancellationToken);
+
+        return entity is null ? null : MapToModel(entity);
+    }
+
+    public async Task<IReadOnlyList<AlertRecord>> GetStaleAlertsAsync(
+        DateTimeOffset since,
+        CancellationToken cancellationToken = default)
+    {
+        var entities = await _context.Alerts
+            .AsNoTracking()
+            .Where(a => a.Status == "new" && a.LastSeen < since)
+            .OrderByDescending(a => a.LastSeen)
+            .ToListAsync(cancellationToken);
+
+        return entities.Select(MapToModel).ToList();
+    }
+
     private static AlertEntity MapToEntity(AlertRecord alert)
     {
         return new AlertEntity
@@ -221,7 +271,19 @@ public class AlertRepository : IAlertRepository
             AggregationCount = alert.AggregationCount,
             AggregatedValue = alert.AggregatedValue,
             CreatedAt = alert.CreatedAt,
-            UpdatedAt = alert.UpdatedAt
+            UpdatedAt = alert.UpdatedAt,
+            AlertCount = alert.AlertCount,
+            FirstSeen = alert.FirstSeen,
+            LastSeen = alert.LastSeen,
+            StatusHistory = SerializeStatusHistory(alert.StatusHistory),
+            AcknowledgedAt = alert.AcknowledgedAt,
+            InvestigationStartedAt = alert.InvestigationStartedAt,
+            ResolvedAt = alert.ResolvedAt,
+            ClosedAt = alert.ClosedAt,
+            FalsePositiveAt = alert.FalsePositiveAt,
+            ResolutionComment = alert.ResolutionComment,
+            ResolutionReason = alert.ResolutionReason,
+            DedupKey = alert.DedupKey
         };
     }
 
@@ -241,7 +303,19 @@ public class AlertRepository : IAlertRepository
             AggregationCount = entity.AggregationCount,
             AggregatedValue = entity.AggregatedValue,
             CreatedAt = entity.CreatedAt,
-            UpdatedAt = entity.UpdatedAt
+            UpdatedAt = entity.UpdatedAt,
+            AlertCount = entity.AlertCount,
+            FirstSeen = entity.FirstSeen,
+            LastSeen = entity.LastSeen,
+            StatusHistory = DeserializeStatusHistory(entity.StatusHistory),
+            AcknowledgedAt = entity.AcknowledgedAt,
+            InvestigationStartedAt = entity.InvestigationStartedAt,
+            ResolvedAt = entity.ResolvedAt,
+            ClosedAt = entity.ClosedAt,
+            FalsePositiveAt = entity.FalsePositiveAt,
+            ResolutionComment = entity.ResolutionComment,
+            ResolutionReason = entity.ResolutionReason,
+            DedupKey = entity.DedupKey
         };
     }
 
@@ -338,6 +412,30 @@ public class AlertRepository : IAlertRepository
         catch (JsonException)
         {
             return Array.Empty<string>();
+        }
+    }
+
+    private static string SerializeStatusHistory(IReadOnlyList<StatusHistoryEntry>? history)
+    {
+        history ??= Array.Empty<StatusHistoryEntry>();
+        return JsonSerializer.Serialize(history, SerializerOptions);
+    }
+
+    private static IReadOnlyList<StatusHistoryEntry> DeserializeStatusHistory(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return Array.Empty<StatusHistoryEntry>();
+        }
+
+        try
+        {
+            var values = JsonSerializer.Deserialize<List<StatusHistoryEntry>>(json, SerializerOptions);
+            return values?.ToArray() ?? Array.Empty<StatusHistoryEntry>();
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<StatusHistoryEntry>();
         }
     }
 }

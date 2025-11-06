@@ -17,7 +17,19 @@ public record AlertResponse(
     int? AggregationCount,
     double? AggregatedValue,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt)
+    DateTimeOffset UpdatedAt,
+    int AlertCount,
+    DateTimeOffset FirstSeen,
+    DateTimeOffset LastSeen,
+    IReadOnlyList<StatusHistoryEntryDto> StatusHistory,
+    DateTimeOffset? AcknowledgedAt,
+    DateTimeOffset? InvestigationStartedAt,
+    DateTimeOffset? ResolvedAt,
+    DateTimeOffset? ClosedAt,
+    DateTimeOffset? FalsePositiveAt,
+    string? ResolutionComment,
+    string? ResolutionReason,
+    string? DedupKey)
 {
     public static AlertResponse FromRecord(AlertRecord alert)
     {
@@ -34,6 +46,32 @@ public record AlertResponse(
             alert.AggregationCount,
             alert.AggregatedValue,
             alert.CreatedAt,
-            alert.UpdatedAt);
+            alert.UpdatedAt,
+            alert.AlertCount,
+            alert.FirstSeen,
+            alert.LastSeen,
+            alert.StatusHistory
+                .Select(h => new StatusHistoryEntryDto(
+                    h.Timestamp,
+                    h.OldStatus,
+                    h.NewStatus,
+                    h.User,
+                    h.Comment))
+                .ToList(),
+            alert.AcknowledgedAt,
+            alert.InvestigationStartedAt,
+            alert.ResolvedAt,
+            alert.ClosedAt,
+            alert.FalsePositiveAt,
+            alert.ResolutionComment,
+            alert.ResolutionReason,
+            alert.DedupKey);
     }
 }
+
+public record StatusHistoryEntryDto(
+    DateTimeOffset Timestamp,
+    string OldStatus,
+    string NewStatus,
+    string? User,
+    string? Comment);

@@ -92,6 +92,81 @@ partial class AlertDbContextModelSnapshot : ModelSnapshot
                 .HasColumnName("updated_at")
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+            b.Property<int>("RiskScore")
+                .HasColumnType("integer")
+                .HasColumnName("risk_score")
+                .HasDefaultValue(0);
+
+            b.Property<string>("RiskLevel")
+                .IsRequired()
+                .HasMaxLength(32)
+                .HasColumnType("character varying(32)")
+                .HasColumnName("risk_level")
+                .HasDefaultValue("low");
+
+            b.Property<string>("RiskFactors")
+                .HasColumnType("jsonb")
+                .HasColumnName("risk_factors");
+
+            b.Property<string>("Reasoning")
+                .HasColumnType("text")
+                .HasColumnName("reasoning");
+
+            // Lifecycle fields
+            b.Property<int>("AlertCount")
+                .HasColumnType("integer")
+                .HasColumnName("alert_count")
+                .HasDefaultValue(1);
+
+            b.Property<DateTimeOffset>("FirstSeen")
+                .HasColumnType("timestamp with time zone")
+                .HasColumnName("first_seen")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            b.Property<DateTimeOffset>("LastSeen")
+                .HasColumnType("timestamp with time zone")
+                .HasColumnName("last_seen")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            b.Property<string>("StatusHistory")
+                .IsRequired()
+                .HasColumnType("jsonb")
+                .HasColumnName("status_history")
+                .HasDefaultValueSql("'[]'::jsonb");
+
+            b.Property<DateTimeOffset?>("AcknowledgedAt")
+                .HasColumnType("timestamp with time zone")
+                .HasColumnName("acknowledged_at");
+
+            b.Property<DateTimeOffset?>("InvestigationStartedAt")
+                .HasColumnType("timestamp with time zone")
+                .HasColumnName("investigation_started_at");
+
+            b.Property<DateTimeOffset?>("ResolvedAt")
+                .HasColumnType("timestamp with time zone")
+                .HasColumnName("resolved_at");
+
+            b.Property<DateTimeOffset?>("ClosedAt")
+                .HasColumnType("timestamp with time zone")
+                .HasColumnName("closed_at");
+
+            b.Property<DateTimeOffset?>("FalsePositiveAt")
+                .HasColumnType("timestamp with time zone")
+                .HasColumnName("false_positive_at");
+
+            b.Property<string>("ResolutionComment")
+                .HasColumnType("text")
+                .HasColumnName("resolution_comment");
+
+            b.Property<string>("ResolutionReason")
+                .HasColumnType("text")
+                .HasColumnName("resolution_reason");
+
+            b.Property<string>("DedupKey")
+                .HasMaxLength(256)
+                .HasColumnType("character varying(256)")
+                .HasColumnName("dedup_key");
+
             b.HasKey("Id")
                 .HasName("PK_alerts");
 
@@ -106,6 +181,28 @@ partial class AlertDbContextModelSnapshot : ModelSnapshot
 
             b.HasIndex("Severity", "TriggeredAt")
                 .HasDatabaseName("ix_alerts_severity_triggered_at");
+
+            b.HasIndex("RiskScore")
+                .HasDatabaseName("ix_alerts_risk_score");
+
+            b.HasIndex("RiskLevel")
+                .HasDatabaseName("ix_alerts_risk_level");
+
+            b.HasIndex("RiskScore", "TriggeredAt")
+                .HasDatabaseName("ix_alerts_risk_score_triggered_at");
+
+            b.HasIndex("RuleId", "LastSeen")
+                .HasDatabaseName("ix_alerts_ruleid_lastseen");
+
+            b.HasIndex("DedupKey")
+                .HasDatabaseName("ix_alerts_dedup_key");
+
+            b.HasIndex("Status", "Severity")
+                .HasDatabaseName("ix_alerts_status_severity");
+
+            b.HasIndex("StatusHistory")
+                .HasDatabaseName("ix_alerts_status_history_gin")
+                .HasAnnotation("Npgsql:IndexMethod", "gin");
 
             b.ToTable("alerts", "public");
         });

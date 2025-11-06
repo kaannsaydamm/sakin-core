@@ -79,6 +79,36 @@ public class AlertDbContext : DbContext
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+            // Lifecycle fields
+            entity.Property(e => e.AlertCount)
+                .HasDefaultValue(1);
+
+            entity.Property(e => e.FirstSeen)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.Property(e => e.LastSeen)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.Property(e => e.StatusHistory)
+                .HasColumnType("jsonb")
+                .HasDefaultValueSql("'[]'::jsonb");
+
+            entity.Property(e => e.AcknowledgedAt);
+            entity.Property(e => e.InvestigationStartedAt);
+            entity.Property(e => e.ResolvedAt);
+            entity.Property(e => e.ClosedAt);
+            entity.Property(e => e.FalsePositiveAt);
+
+            entity.Property(e => e.ResolutionComment)
+                .HasColumnType("text");
+
+            entity.Property(e => e.ResolutionReason)
+                .HasColumnType("text");
+
+            entity.Property(e => e.DedupKey)
+                .HasMaxLength(256);
+
+            // Indexes
             entity.HasIndex(e => e.Severity)
                 .HasDatabaseName("ix_alerts_severity");
 
@@ -99,6 +129,21 @@ public class AlertDbContext : DbContext
 
             entity.HasIndex(e => new { e.RiskScore, e.TriggeredAt })
                 .HasDatabaseName("ix_alerts_risk_score_triggered_at");
+
+            // Lifecycle indexes
+            entity.HasIndex(e => new { e.RuleId, e.LastSeen })
+                .HasDatabaseName("ix_alerts_ruleid_lastseen");
+
+            entity.HasIndex(e => e.DedupKey)
+                .HasDatabaseName("ix_alerts_dedup_key");
+
+            entity.HasIndex(e => new { e.Status, e.Severity })
+                .HasDatabaseName("ix_alerts_status_severity");
+
+            // JSONB GIN index for status history
+            entity.HasIndex("StatusHistory")
+                .HasDatabaseName("ix_alerts_status_history_gin")
+                .HasMethod("gin");
         });
     }
 }

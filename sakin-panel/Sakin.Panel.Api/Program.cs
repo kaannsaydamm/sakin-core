@@ -1,7 +1,9 @@
 using Sakin.Correlation.Persistence.DependencyInjection;
+using Sakin.Correlation.Services;
 using Sakin.Panel.Api.Services;
 using Sakin.Common.Cache;
 using Sakin.Common.DependencyInjection;
+using Sakin.Common.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,6 +33,9 @@ builder.Services.AddScoped<NpgsqlConnection>(sp =>
 // Register Sakin services
 builder.Services.AddSakinCommon(builder.Configuration);
 builder.Services.AddCorrelationPersistence(builder.Configuration);
+builder.Services.Configure<AlertLifecycleOptions>(builder.Configuration.GetSection(AlertLifecycleOptions.SectionName));
+builder.Services.AddScoped<IAlertDeduplicationService, AlertDeduplicationService>();
+builder.Services.AddScoped<IAlertLifecycleService, AlertLifecycleService>();
 builder.Services.AddScoped<IAlertService, AlertService>();
 builder.Services.AddScoped<IAssetService, AssetService>();
 
