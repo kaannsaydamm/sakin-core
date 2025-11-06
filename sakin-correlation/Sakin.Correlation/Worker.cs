@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Sakin.Common.Models;
 using Sakin.Correlation.Configuration;
 using Sakin.Correlation.Engine;
+using Sakin.Correlation.Models;
 using Sakin.Correlation.Services;
 using Sakin.Messaging.Consumer;
 
@@ -15,7 +16,8 @@ public class Worker : BackgroundService
     private readonly ILogger<Worker> _logger;
     private readonly KafkaWorkerOptions _options;
     private readonly IRuleLoaderService _ruleLoader;
-    private readonly IRuleEvaluator _ruleEvaluator;
+    private readonly IRuleLoaderServiceV2 _ruleLoaderV2;
+    private readonly IRuleEvaluatorV2 _ruleEvaluator;
     private readonly IAlertCreatorService _alertCreator;
 
     public Worker(
@@ -23,13 +25,15 @@ public class Worker : BackgroundService
         IOptions<KafkaWorkerOptions> options,
         ILogger<Worker> logger,
         IRuleLoaderService ruleLoader,
-        IRuleEvaluator ruleEvaluator,
+        IRuleLoaderServiceV2 ruleLoaderV2,
+        IRuleEvaluatorV2 ruleEvaluator,
         IAlertCreatorService alertCreator)
     {
         _consumer = consumer;
         _logger = logger;
         _options = options.Value;
         _ruleLoader = ruleLoader;
+        _ruleLoaderV2 = ruleLoaderV2;
         _ruleEvaluator = ruleEvaluator;
         _alertCreator = alertCreator;
     }
@@ -96,11 +100,13 @@ public class Worker : BackgroundService
     {
         try
         {
-            var rules = _ruleLoader.Rules;
-            _logger.LogDebug("Evaluating event {EventId} against {RuleCount} rules", 
-                eventEnvelope.EventId, rules.Count);
+            var legacyRules = _ruleLoader.Rules;
+            var v2Rules = _ruleLoaderV2.RulesV2;
+            _logger.LogDebug("Evaluating event {EventId} against {LegacyRuleCount} legacy rules and {V2RuleCount} V2 rules", 
+                eventEnvelope.EventId, legacyRules.Count, v2Rules.Count);
 
-            foreach (var rule in rules)
+            // Evaluate legacy rules
+            foreach (var rule in legacyRules)
             {
                 try
                 {
@@ -109,7 +115,7 @@ public class Worker : BackgroundService
                     if (evaluationResult.IsMatch && evaluationResult.ShouldTriggerAlert)
                     {
                         _logger.LogInformation(
-                            "Rule {RuleId} ({RuleName}) matched for event {EventId}, creating alert",
+                            "Legacy rule {RuleId} ({RuleName}) matched for event {EventId}, creating alert",
                             rule.Id, rule.Name, eventEnvelope.EventId);
 
                         await _alertCreator.CreateAlertAsync(rule, eventEnvelope, cancellationToken);
@@ -117,13 +123,44 @@ public class Worker : BackgroundService
                     else if (evaluationResult.IsMatch)
                     {
                         _logger.LogDebug(
-                            "Rule {RuleId} ({RuleName}) matched but should not trigger alert (aggregation rule)",
+                            "Legacy rule {RuleId} ({RuleName}) matched but should not trigger alert (aggregation rule)",
                             rule.Id, rule.Name);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error evaluating rule {RuleId} for event {EventId}", 
+                    _logger.LogError(ex, "Error evaluating legacy rule {RuleId} for event {EventId}", 
+                        rule.Id, eventEnvelope.EventId);
+                }
+            }
+
+            // Evaluate V2 rules
+            foreach (var rule in v2Rules)
+            {
+                try
+                {
+                    var evaluationResult = await _ruleEvaluator.EvaluateAsync(rule, eventEnvelope);
+                    
+                    if (evaluationResult.IsMatch && evaluationResult.ShouldTriggerAlert)
+                    {
+                        _logger.LogInformation(
+                            "V2 rule {RuleId} ({RuleName}) matched for event {EventId}, creating alert",
+                            rule.Id, rule.Name, eventEnvelope.EventId);
+
+                        // Convert V2 rule to legacy format for alert creation
+                        var legacyRule = ConvertToLegacyRule(rule);
+                        await _alertCreator.CreateAlertAsync(legacyRule, eventEnvelope, cancellationToken);
+                    }
+                    else if (evaluationResult.IsMatch)
+                    {
+                        _logger.LogDebug(
+                            "V2 rule {RuleId} ({RuleName}) matched but should not trigger alert (aggregation threshold not reached)",
+                            rule.Id, rule.Name);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error evaluating V2 rule {RuleId} for event {EventId}", 
                         rule.Id, eventEnvelope.EventId);
                 }
             }
@@ -132,6 +169,74 @@ public class Worker : BackgroundService
         {
             _logger.LogError(ex, "Error processing event {EventId}", eventEnvelope.EventId);
         }
+    }
+
+    private CorrelationRule ConvertToLegacyRule(CorrelationRuleV2 v2Rule)
+    {
+        return new CorrelationRule
+        {
+            Id = v2Rule.Id,
+            Name = v2Rule.Name,
+            Description = v2Rule.Description,
+            Enabled = v2Rule.Enabled,
+            Severity = Enum.TryParse<SeverityLevel>(v2Rule.Severity, true, out var severity) ? severity : SeverityLevel.Medium,
+            Triggers = new List<Trigger>
+            {
+                new()
+                {
+                    Type = TriggerType.Event,
+                    EventType = v2Rule.Trigger.SourceTypes?.FirstOrDefault() ?? "all",
+                    Filters = v2Rule.Trigger.Match?.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value
+                    ) ?? new Dictionary<string, object>()
+                }
+            },
+            Conditions = string.IsNullOrEmpty(v2Rule.Condition.Field) 
+                ? new List<Condition>()
+                : new List<Condition>
+                {
+                    new()
+                    {
+                        Field = v2Rule.Condition.Field,
+                        Operator = ParseConditionOperator(v2Rule.Condition.Operator),
+                        Value = v2Rule.Condition.Value
+                    }
+                },
+            Actions = v2Rule.Actions?.Select(action => new Sakin.Correlation.Models.Action
+            {
+                Type = ActionType.Alert,
+                Parameters = new Dictionary<string, object>()
+            }).ToList() ?? new List<Sakin.Correlation.Models.Action>(),
+            Metadata = v2Rule.Metadata
+        };
+    }
+
+    private ConditionOperator ParseConditionOperator(string operatorStr)
+    {
+        return operatorStr.ToLowerInvariant() switch
+        {
+            "equals" => ConditionOperator.Equals,
+            "not_equals" => ConditionOperator.NotEquals,
+            "contains" => ConditionOperator.Contains,
+            "not_contains" => ConditionOperator.NotContains,
+            "starts_with" => ConditionOperator.StartsWith,
+            "ends_with" => ConditionOperator.EndsWith,
+            "greater_than" => ConditionOperator.GreaterThan,
+            "greater_than_or_equal" => ConditionOperator.GreaterThanOrEqual,
+            "less_than" => ConditionOperator.LessThan,
+            "less_than_or_equal" => ConditionOperator.LessThanOrEqual,
+            "in" => ConditionOperator.In,
+            "not_in" => ConditionOperator.NotIn,
+            "regex" => ConditionOperator.Regex,
+            "exists" => ConditionOperator.Exists,
+            "not_exists" => ConditionOperator.NotExists,
+            "gte" => ConditionOperator.GreaterThanOrEqual,
+            "lte" => ConditionOperator.LessThanOrEqual,
+            "gt" => ConditionOperator.GreaterThan,
+            "lt" => ConditionOperator.LessThan,
+            _ => ConditionOperator.Equals
+        };
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)
