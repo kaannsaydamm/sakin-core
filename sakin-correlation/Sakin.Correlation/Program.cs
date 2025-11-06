@@ -32,6 +32,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.Configure<RulesOptions>(configuration.GetSection(RulesOptions.SectionName));
         services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
         services.Configure<AggregationOptions>(configuration.GetSection(AggregationOptions.SectionName));
+        services.Configure<RiskScoringConfiguration>(configuration.GetSection("RiskScoring"));
 
         services.Configure<KafkaOptions>(options =>
         {
@@ -101,6 +102,26 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IRuleLoaderServiceV2, RuleLoaderServiceV2>();
         services.AddSingleton<IAlertCreatorService, AlertCreatorService>();
         
+        // Add risk scoring services
+        services.AddSingleton<ITimeOfDayService, TimeOfDayService>();
+        services.AddSingleton<IUserRiskProfileService, UserRiskProfileService>();
+        services.AddSingleton<IRiskScoringService, RiskScoringService>();
+        services.AddSingleton<RiskScoringWorker>();
+        services.AddSingleton<UserRiskProfileWorker>();
+        
+        // Update AlertCreatorService to include risk scoring worker
+        services.AddSingleton<IAlertCreatorServiceWithRiskScoring>(provider =>
+        {
+            var alertCreator = new AlertCreatorService(
+                provider.GetRequiredService<IAlertRepository>(),
+                provider.GetRequiredService<IAssetCacheService>(),
+                provider.GetRequiredService<ILogger<AlertCreatorService>>(),
+                provider.GetRequiredService<IMetricsService>(),
+                provider.GetRequiredService<RiskScoringWorker>()
+            );
+            return alertCreator;
+        });
+        
         // Add metrics service
         services.AddSingleton<IMetricsService, MetricsService>();
 
@@ -115,6 +136,8 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddHostedService<RuleLoaderService>();
         services.AddHostedService<RuleLoaderServiceV2>();
         services.AddHostedService<RedisCleanupService>();
+        services.AddHostedService<UserRiskProfileWorker>();
+        services.AddHostedService<RiskScoringWorker>();
         services.AddHostedService<Worker>();
     })
     .ConfigureWebHostDefaults(webBuilder =>

@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Sakin.Correlation.Models;
 using Sakin.Correlation.Persistence.Models;
+using Sakin.Correlation.Persistence.Entities;
 
 namespace Sakin.Correlation.Persistence.Repositories;
 
@@ -33,4 +34,6 @@ public interface IAlertRepository
         Guid id,
         AlertStatus status,
         CancellationToken cancellationToken = default);
+
+    Task<AlertEntity> UpdateAsync(AlertEntity alert, CancellationToken cancellationToken = default);
 }

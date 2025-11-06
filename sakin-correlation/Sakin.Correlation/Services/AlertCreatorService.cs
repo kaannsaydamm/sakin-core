@@ -4,26 +4,30 @@ using Sakin.Common.Models;
 using Sakin.Correlation.Models;
 using Sakin.Correlation.Persistence.Models;
 using Sakin.Correlation.Persistence.Repositories;
+using Sakin.Correlation.Persistence.Entities;
 
 namespace Sakin.Correlation.Services;
 
-public class AlertCreatorService : IAlertCreatorService
+public class AlertCreatorService : IAlertCreatorService, IAlertCreatorServiceWithRiskScoring
 {
     private readonly IAlertRepository _alertRepository;
     private readonly IAssetCacheService _assetCacheService;
     private readonly ILogger<AlertCreatorService> _logger;
     private readonly IMetricsService? _metricsService;
+    private readonly RiskScoringWorker? _riskScoringWorker;
 
     public AlertCreatorService(
         IAlertRepository alertRepository,
         IAssetCacheService assetCacheService,
         ILogger<AlertCreatorService> logger,
-        IMetricsService? metricsService = null)
+        IMetricsService? metricsService = null,
+        RiskScoringWorker? riskScoringWorker = null)
     {
         _alertRepository = alertRepository;
         _assetCacheService = assetCacheService;
         _logger = logger;
         _metricsService = metricsService;
+        _riskScoringWorker = riskScoringWorker;
     }
 
     public async Task CreateAlertAsync(CorrelationRule rule, EventEnvelope eventEnvelope, CancellationToken cancellationToken = default)
@@ -65,6 +69,81 @@ public class AlertCreatorService : IAlertCreatorService
             _logger.LogError(ex, "Failed to create alert for rule {RuleId}", rule.Id);
             throw;
         }
+    }
+
+    public async Task CreateAlertWithRiskScoringAsync(CorrelationRule rule, EventEnvelope eventEnvelope, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Creating alert with risk scoring for rule {RuleId} - {RuleName}", rule.Id, rule.Name);
+
+            // Determine asset context and boost severity if needed
+            var (adjustedSeverity, assetContext) = await DetermineSeverityWithAssetContext(eventEnvelope, rule.Severity);
+
+            var alertRecord = new AlertRecord
+            {
+                Id = Guid.NewGuid(),
+                RuleId = rule.Id,
+                RuleName = rule.Name,
+                Severity = adjustedSeverity,
+                Status = AlertStatus.New,
+                TriggeredAt = DateTimeOffset.UtcNow,
+                Source = eventEnvelope.Source,
+                Context = BuildContext(eventEnvelope, assetContext),
+                MatchedConditions = Array.Empty<string>(), // Will be populated by rule evaluator
+                AggregationCount = null, // Stateless rules don't have aggregation
+                AggregatedValue = null, // Stateless rules don't have aggregation
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+
+            var createdAlert = await _alertRepository.CreateAsync(alertRecord, cancellationToken);
+            
+            // Queue for risk scoring if the worker is available
+            if (_riskScoringWorker != null)
+            {
+                // Convert AlertRecord to AlertEntity for risk scoring
+                var alertEntity = ConvertToAlertEntity(createdAlert, eventEnvelope);
+                await _riskScoringWorker.QueueRiskScoringAsync(createdAlert.Id, alertEntity, eventEnvelope);
+                
+                _logger.LogInformation("Alert {AlertId} queued for risk scoring", createdAlert.Id);
+            }
+            else
+            {
+                _logger.LogWarning("RiskScoringWorker not available, alert {AlertId} created without risk scoring", createdAlert.Id);
+            }
+            
+            _metricsService?.IncrementAlertsCreated();
+            
+            _logger.LogInformation(
+                "Alert created successfully: {AlertId} for rule {RuleId} with severity {Severity} (original: {OriginalSeverity})", 
+                createdAlert.Id, rule.Id, adjustedSeverity, rule.Severity);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create alert for rule {RuleId}", rule.Id);
+            throw;
+        }
+    }
+
+    private static AlertEntity ConvertToAlertEntity(AlertRecord alertRecord, EventEnvelope eventEnvelope)
+    {
+        return new AlertEntity
+        {
+            Id = alertRecord.Id,
+            RuleId = alertRecord.RuleId,
+            RuleName = alertRecord.RuleName,
+            Severity = alertRecord.Severity.ToString().ToLowerInvariant(),
+            Status = "pending_score", // Special status for pending risk scoring
+            TriggeredAt = alertRecord.TriggeredAt,
+            Source = alertRecord.Source,
+            CorrelationContext = JsonSerializer.Serialize(alertRecord.Context),
+            MatchedConditions = JsonSerializer.Serialize(alertRecord.MatchedConditions),
+            AggregationCount = alertRecord.AggregationCount,
+            AggregatedValue = alertRecord.AggregatedValue,
+            CreatedAt = alertRecord.CreatedAt,
+            UpdatedAt = alertRecord.UpdatedAt
+        };
     }
 
     private static Dictionary<string, object?> BuildContext(EventEnvelope eventEnvelope)

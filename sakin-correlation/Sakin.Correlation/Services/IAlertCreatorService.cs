@@ -7,3 +7,8 @@ public interface IAlertCreatorService
 {
     Task CreateAlertAsync(CorrelationRule rule, EventEnvelope eventEnvelope, CancellationToken cancellationToken = default);
 }
+
+public interface IAlertCreatorServiceWithRiskScoring : IAlertCreatorService
+{
+    Task CreateAlertWithRiskScoringAsync(CorrelationRule rule, EventEnvelope eventEnvelope, CancellationToken cancellationToken = default);
+}
