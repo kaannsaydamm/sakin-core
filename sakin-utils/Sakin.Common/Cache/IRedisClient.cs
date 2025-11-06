@@ -10,5 +10,7 @@ namespace Sakin.Common.Cache
         Task<bool> KeyExistsAsync(string key);
         Task<bool> KeyExpireAsync(string key, TimeSpan expiry);
         Task<long> IncrementAsync(string key);
+        Task<long> PublishAsync(string channel, string message);
+        Task SubscribeAsync(string channel, Action<string> messageHandler);
     }
 }

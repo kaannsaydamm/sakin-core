@@ -109,6 +109,37 @@ namespace Sakin.Common.Cache
             }
         }
 
+        public async Task<long> PublishAsync(string channel, string message)
+        {
+            try
+            {
+                var subscriber = _redis.GetSubscriber();
+                return await subscriber.PublishAsync(channel, message);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error publishing to Redis channel {Channel}: {Message}", channel, ex.Message);
+                return 0;
+            }
+        }
+
+        public async Task SubscribeAsync(string channel, Action<string> messageHandler)
+        {
+            try
+            {
+                var subscriber = _redis.GetSubscriber();
+                await subscriber.SubscribeAsync(channel, (channel, message) => {
+                    messageHandler(message.ToString());
+                });
+                _logger?.LogInformation("Subscribed to Redis channel: {Channel}", channel);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error subscribing to Redis channel {Channel}: {Message}", channel, ex.Message);
+                throw;
+            }
+        }
+
         public void Dispose()
         {
             _redis?.Dispose();
