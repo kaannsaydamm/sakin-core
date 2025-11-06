@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sakin.Ingest.Configuration;
+using Sakin.Ingest.Parsers;
 using Sakin.Ingest.Workers;
 using Sakin.Messaging.Configuration;
 using Sakin.Messaging.Consumer;
@@ -58,6 +59,16 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IMessageSerializer, JsonMessageSerializer>();
         services.AddSingleton<IKafkaProducer, KafkaProducer>();
         services.AddSingleton<IKafkaConsumer, KafkaConsumer>();
+
+        services.AddSingleton<ParserRegistry>(sp =>
+        {
+            var registry = new ParserRegistry();
+            registry.Register(new WindowsEventLogParser());
+            registry.Register(new SyslogParser());
+            registry.Register(new ApacheAccessLogParser());
+            registry.Register(new FortinetLogParser());
+            return registry;
+        });
 
         services.AddHostedService<EventIngestWorker>();
     })
