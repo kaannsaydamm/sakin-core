@@ -10,6 +10,10 @@ volumes:
   opensearch-data:
   clickhouse-data:
   geoip-data:
+  prometheus-data:
+  alertmanager-data:
+  grafana-data:
+  jaeger-data:
 
 services:
   # PostgreSQL - Primary database for network sensor and events
@@ -242,32 +246,187 @@ services:
       - sakin-network
     restart: unless-stopped
 
-  # Correlation Service (placeholder)
-  # Uncomment when ready to deploy
-  # correlation:
-  #   build:
-  #     context: ../
-  #     dockerfile: sakin-correlation/Dockerfile
-  #   container_name: sakin-correlation
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     kafka:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #     opensearch:
-  #       condition: service_healthy
-  #   environment:
-  #     - Database__Host=postgres
-  #     - Database__Port=5432
-  #     - Database__Database=network_db
-  #     - Database__Username=postgres
-  #     - Database__Password=postgres_dev_password
-  #     - Kafka__BootstrapServers=kafka:9092
-  #     - Redis__ConnectionString=redis:6379,password=redis_dev_password
-  #     - OpenSearch__Url=http://opensearch:9200
-  #     - ASPNETCORE_ENVIRONMENT=Development
-  #   networks:
-  #     - sakin-network
-  #   restart: unless-stopped
+  # Prometheus - Metrics collection and alerting
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: sakin-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert-rules.yml:/etc/prometheus/rules/alert-rules.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - sakin-network
+    depends_on:
+      - alertmanager
+    restart: unless-stopped
+
+  # Alertmanager - Alert routing and notification
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: sakin-alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/config.yml:ro
+      - alertmanager-data:/alertmanager
+    networks:
+      - sakin-network
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-https://hooks.slack.com/services/PLACEHOLDER}
+    restart: unless-stopped
+
+  # Grafana - Visualization and dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: sakin-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - sakin-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # Jaeger - Distributed tracing (optional)
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: sakin-jaeger
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # HTTP collector
+      - "4317:4317"    # OTLP receiver (gRPC)
+      - "4318:4318"    # OTLP receiver (HTTP)
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    volumes:
+      - jaeger-data:/badger/data
+    networks:
+      - sakin-network
+    restart: unless-stopped
+
+  # SOAR Service - Security Orchestration, Automation and Response
+  soar:
+    build:
+      context: ../
+      dockerfile: sakin-soar/Dockerfile
+    container_name: sakin-soar
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - Kafka__BootstrapServers=kafka:9092
+      - Database__Host=postgres
+      - Database__Port=5432
+      - Database__Database=network_db
+      - Database__Username=postgres
+      - Database__Password=postgres_dev_password
+      - Redis__ConnectionString=redis:6379,password=redis_dev_password
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      - JIRA_BASE_URL=${JIRA_BASE_URL:-}
+      - JIRA_API_TOKEN=${JIRA_API_TOKEN:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - Telemetry__ServiceName=sakin-soar
+      - Telemetry__OtlpEndpoint=http://jaeger:4317
+      - ASPNETCORE_ENVIRONMENT=Development
+    volumes:
+      - ../configs/playbooks:/etc/sakin/playbooks
+      - ../configs/correlation-rules:/etc/sakin/correlation-rules
+    networks:
+      - sakin-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ClickHouse Event Sink - Analytics
+  clickhouse-sink:
+    build:
+      context: ../
+      dockerfile: sakin-analytics/Sakin.Analytics.ClickHouseSink/Dockerfile
+    container_name: sakin-clickhouse-sink
+    depends_on:
+      kafka:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    environment:
+      - Kafka__BootstrapServers=kafka:9092
+      - ClickHouse__Host=clickhouse
+      - ClickHouse__Port=8123
+      - ClickHouse__Database=sakin_analytics
+      - ClickHouse__Username=clickhouse
+      - ClickHouse__Password=clickhouse_dev_password
+      - BaselineAggregation__KafkaTopic=normalized-events
+      - Telemetry__ServiceName=sakin-clickhouse-sink
+      - Telemetry__OtlpEndpoint=http://jaeger:4317
+      - ASPNETCORE_ENVIRONMENT=Development
+    networks:
+      - sakin-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Baseline Calculation Worker - ML/Anomaly Detection
+  baseline-worker:
+    build:
+      context: ../
+      dockerfile: sakin-analytics/Sakin.Analytics.BaselineWorker/Dockerfile
+    container_name: sakin-baseline-worker
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - ClickHouse__Host=clickhouse
+      - ClickHouse__Port=8123
+      - ClickHouse__Database=sakin_analytics
+      - ClickHouse__Username=clickhouse
+      - ClickHouse__Password=clickhouse_dev_password
+      - Redis__ConnectionString=redis:6379,password=redis_dev_password
+      - BaselineAggregation__Enabled=true
+      - BaselineAggregation__AnalysisWindowDays=7
+      - BaselineAggregation__BaselineTtlHours=25
+      - Telemetry__ServiceName=sakin-baseline-worker
+      - Telemetry__OtlpEndpoint=http://jaeger:4317
+      - ASPNETCORE_ENVIRONMENT=Development
+    networks:
+      - sakin-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
