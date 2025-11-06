@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sakin.Common.Models;
 using Sakin.Ingest.Configuration;
+using Sakin.Ingest.Parsers;
 using Sakin.Messaging.Consumer;
 using Sakin.Messaging.Producer;
 
@@ -12,11 +13,13 @@ public class EventIngestWorker(
     IKafkaConsumer consumer,
     IKafkaProducer producer,
     IOptions<IngestKafkaOptions> options,
+    ParserRegistry parserRegistry,
     ILogger<EventIngestWorker> logger) : BackgroundService
 {
     private readonly IKafkaConsumer _consumer = consumer;
     private readonly IKafkaProducer _producer = producer;
     private readonly IngestKafkaOptions _options = options.Value;
+    private readonly ParserRegistry _parserRegistry = parserRegistry;
     private readonly ILogger<EventIngestWorker> _logger = logger;
 
     private string RawTopic => string.IsNullOrWhiteSpace(_options.RawEventsTopic)
@@ -59,14 +62,15 @@ public class EventIngestWorker(
         }
 
         _logger.LogInformation(
-            "Processing raw event {EventId} from source {Source} (topic: {Topic}, partition: {Partition}, offset: {Offset})",
+            "Processing raw event {EventId} from source {Source} with sourceType {SourceType} (topic: {Topic}, partition: {Partition}, offset: {Offset})",
             result.Message.EventId,
             result.Message.Source,
+            result.Message.SourceType,
             result.Topic,
             result.Partition,
             result.Offset);
 
-        var normalizedEnvelope = BuildNormalizedEnvelope(result.Message);
+        var normalizedEnvelope = await BuildNormalizedEnvelopeAsync(result.Message);
         var messageKey = normalizedEnvelope.EventId.ToString();
 
         await _producer.ProduceAsync(
@@ -80,23 +84,60 @@ public class EventIngestWorker(
             NormalizedTopic);
     }
 
-    private static EventEnvelope BuildNormalizedEnvelope(EventEnvelope envelope)
+    private async Task<EventEnvelope> BuildNormalizedEnvelopeAsync(EventEnvelope envelope)
+    {
+        NormalizedEvent normalizedEvent;
+
+        var parser = _parserRegistry.GetParser(envelope.SourceType);
+        if (parser is not null)
+        {
+            try
+            {
+                normalizedEvent = await parser.ParseAsync(envelope);
+
+                if (envelope.Enrichment is { Count: > 0 } enrichment)
+                {
+                    var mergedMetadata = new Dictionary<string, object>(enrichment);
+                    foreach (var kvp in normalizedEvent.Metadata)
+                    {
+                        if (!mergedMetadata.ContainsKey(kvp.Key))
+                        {
+                            mergedMetadata[kvp.Key] = kvp.Value;
+                        }
+                    }
+                    normalizedEvent = normalizedEvent with { Metadata = mergedMetadata };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Parser for sourceType {SourceType} failed, using passthrough normalization", envelope.SourceType);
+                normalizedEvent = BuildPassthroughNormalizedEvent(envelope);
+            }
+        }
+        else
+        {
+            _logger.LogWarning("No parser found for sourceType {SourceType}, using passthrough normalization", envelope.SourceType);
+            normalizedEvent = BuildPassthroughNormalizedEvent(envelope);
+        }
+
+        return envelope with
+        {
+            Normalized = normalizedEvent
+        };
+    }
+
+    private static NormalizedEvent BuildPassthroughNormalizedEvent(EventEnvelope envelope)
     {
         var normalizationMetadata = envelope.Enrichment is { Count: > 0 } enrichment
             ? new Dictionary<string, object>(enrichment)
             : new Dictionary<string, object>();
 
-        var normalizedEvent = new NormalizedEvent
+        return new NormalizedEvent
         {
             Id = envelope.EventId,
             Timestamp = envelope.ReceivedAt.UtcDateTime,
             Payload = envelope.Raw,
             Metadata = normalizationMetadata
-        };
-
-        return envelope with
-        {
-            Normalized = normalizedEvent
         };
     }
 
