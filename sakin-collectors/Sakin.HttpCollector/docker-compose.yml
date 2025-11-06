@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  sakin-http-collector:
+    build:
+      context: ../..
+      dockerfile: sakin-collectors/Sakin.HttpCollector/Dockerfile
+    container_name: sakin-http-collector
+    ports:
+      - "8080:8080"
+    environment:
+      - HttpCollector__Port=8080
+      - HttpCollector__Path=/api/events
+      - HttpCollector__MaxBodySize=65536
+      - HttpCollector__RequireApiKey=false
+      - Kafka__BootstrapServers=kafka:9092
+      - Kafka__Topic=raw-events
+      - KafkaOptions__BootstrapServers=kafka:9092
+      - ProducerOptions__LingerMs=10
+      - ProducerOptions__BatchSize=16384
+      - ProducerOptions__CompressionType=snappy
+      - ProducerOptions__Acks=all
+    depends_on:
+      - kafka
+    networks:
+      - sakin-network
+    restart: unless-stopped
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: sakin-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - sakin-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: sakin-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - sakin-network
+
+networks:
+  sakin-network:
+    driver: bridge
