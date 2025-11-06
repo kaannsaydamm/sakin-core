@@ -11,7 +11,7 @@ public class FortinetLogParser : IEventParser
         @"CEF:0\|Fortinet\|FortiGate\|[^\|]*\|(?<signatureId>[^\|]*)\|(?<signatureName>[^\|]*)\|(?<severity>\d+)\|(?<cefContent>.*)");
 
     private static readonly GrokMatcher FortinetKeyValuePattern = new(
-        @"action=(?<action>\w+).*?srcip=(?<srcip>[\d.]+).*?dstip=(?<dstip>[\d.]+).*?srcport=(?<srcport>\d+).*?dstport=(?<dstport>\d+).*?proto=(?<proto>\d+)");
+        @"action=(?<action>\w+).*?srcip=(?<srcip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}).*?dstip=(?<dstip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}).*?srcport=(?<srcport>\d+).*?dstport=(?<dstport>\d+).*?proto=(?<proto>\d+)");
 
     public async Task<NormalizedEvent> ParseAsync(EventEnvelope raw)
     {

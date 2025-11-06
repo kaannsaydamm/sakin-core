@@ -8,10 +8,10 @@ public class ApacheAccessLogParser : IEventParser
     public string SourceType => "apache";
 
     private static readonly GrokMatcher CommonLogPattern = new(
-        @"^(?<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+(?:\S+\s+){2}(?<user>\S+)\s+\[(?<timestamp>[^\]]+)\]\s+""(?<method>\S+)\s+(?<path>\S+)\s+(?<httpversion>\S+)""\s+(?<statuscode>\d{3})\s+(?<bytessize>\d+|-)\s+""(?<referrer>[^""]*)""\s+""(?<useragent>[^""]*)""");
+        "^(?<ip>\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})\\s+(?:\\S+\\s+){2}(?<user>\\S+)\\s+\\[(?<timestamp>[^\\]]+)\\]\\s+\"(?<method>\\S+)\\s+(?<path>\\S+)\\s+(?<httpversion>HTTP/[\\d.]+)\"\\s+(?<statuscode>\\d{3})\\s+(?<bytessize>\\d+|-)\\s+\"(?<referrer>[^\"]*)\"\\s+\"(?<useragent>[^\"]*)\"");
 
     private static readonly GrokMatcher CombinedLogPattern = new(
-        @"^(?<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+(?:\S+\s+){2}(?<user>\S+)\s+\[(?<timestamp>[^\]]+)\]\s+""(?<method>\S+)\s+(?<path>\S+)\s+(?<httpversion>\S+)""\s+(?<statuscode>\d{3})\s+(?<bytessize>\d+|-)\s+""(?<referrer>[^""]*)""\s+""(?<useragent>[^""]*)""\s+(?<responsetime>\S+)?");
+        "^(?<ip>\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})\\s+(?:\\S+\\s+){2}(?<user>\\S+)\\s+\\[(?<timestamp>[^\\]]+)\\]\\s+\"(?<method>\\S+)\\s+(?<path>\\S+)\\s+(?<httpversion>HTTP/[\\d.]+)\"\\s+(?<statuscode>\\d{3})\\s+(?<bytessize>\\d+|-)\\s+\"(?<referrer>[^\"]*)\"\\s+\"(?<useragent>[^\"]*)\"\\s+(?<responsetime>\\S+)?");
 
     public async Task<NormalizedEvent> ParseAsync(EventEnvelope raw)
     {
