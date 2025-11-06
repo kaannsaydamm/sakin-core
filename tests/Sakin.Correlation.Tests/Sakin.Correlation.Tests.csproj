@@ -21,6 +21,9 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.10" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
     <PackageReference Include="Testcontainers.PostgreSql" Version="3.10.0" />
+    <PackageReference Include="Testcontainers.Redis" Version="3.10.0" />
+    <PackageReference Include="Testcontainers.Kafka" Version="3.10.0" />
+    <PackageReference Include="Confluent.Kafka" Version="2.6.1" />
   </ItemGroup>
 
   <ItemGroup>
