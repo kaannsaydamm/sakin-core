@@ -83,6 +83,19 @@ namespace Sakin.Common.Cache
             }
         }
 
+        public async Task<bool> KeyExpireAsync(string key, TimeSpan expiry)
+        {
+            try
+            {
+                return await _database.KeyExpireAsync(key, expiry);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error setting expiration for Redis key {Key}: {Message}", key, ex.Message);
+                return false;
+            }
+        }
+
         public async Task<long> IncrementAsync(string key)
         {
             try

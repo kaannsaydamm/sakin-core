@@ -1,3 +1,5 @@
+using System;
+
 namespace Sakin.Common.Cache
 {
     public interface IRedisClient
@@ -6,6 +8,7 @@ namespace Sakin.Common.Cache
         Task<string?> StringGetAsync(string key);
         Task<bool> KeyDeleteAsync(string key);
         Task<bool> KeyExistsAsync(string key);
+        Task<bool> KeyExpireAsync(string key, TimeSpan expiry);
         Task<long> IncrementAsync(string key);
     }
 }
