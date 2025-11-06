@@ -26,6 +26,7 @@ public class EventIngestWorker(
     IOptions<IngestKafkaOptions> options,
     ParserRegistry parserRegistry,
     IGeoIpService geoIpService,
+    IAssetCacheService assetCacheService,
     IRedisClient redisClient,
     IOptions<ThreatIntelOptions> threatOptions,
     ILogger<EventIngestWorker> logger) : BackgroundService
@@ -35,6 +36,7 @@ public class EventIngestWorker(
     private readonly IngestKafkaOptions _options = options.Value;
     private readonly ParserRegistry _parserRegistry = parserRegistry;
     private readonly IGeoIpService _geoIpService = geoIpService;
+    private readonly IAssetCacheService _assetCacheService = assetCacheService;
     private readonly IRedisClient _redisClient = redisClient;
     private readonly ThreatIntelOptions _threatIntelOptions = threatOptions.Value;
     private readonly ILogger<EventIngestWorker> _logger = logger;
@@ -146,7 +148,8 @@ public class EventIngestWorker(
 
         // Apply GeoIP enrichment if enabled and we have IP addresses
         var geoEnrichedEnvelope = ApplyGeoIpEnrichment(envelope, normalizedEvent);
-        var threatIntelEnrichedEnvelope = await ApplyThreatIntelEnrichmentAsync(geoEnrichedEnvelope);
+        var assetEnrichedEnvelope = ApplyAssetEnrichment(geoEnrichedEnvelope, normalizedEvent);
+        var threatIntelEnrichedEnvelope = await ApplyThreatIntelEnrichmentAsync(assetEnrichedEnvelope);
 
         return threatIntelEnrichedEnvelope;
     }
@@ -176,6 +179,57 @@ public class EventIngestWorker(
                 enrichment["dest_geo"] = destGeo;
                 _logger.LogDebug("Enriched destination IP {DestinationIp} with GeoIP data: {Country}, {City}", 
                     normalizedEvent.DestinationIp, destGeo.Country, destGeo.City);
+            }
+        }
+
+        return envelope with
+        {
+            Normalized = normalizedEvent,
+            Enrichment = enrichment
+        };
+    }
+
+    private EventEnvelope ApplyAssetEnrichment(EventEnvelope envelope, NormalizedEvent normalizedEvent)
+    {
+        var enrichment = new Dictionary<string, object>(envelope.Enrichment);
+
+        // Enrich source IP with asset information
+        if (!string.IsNullOrWhiteSpace(normalizedEvent.SourceIp))
+        {
+            var sourceAsset = _assetCacheService.GetAsset(normalizedEvent.SourceIp);
+            if (sourceAsset != null)
+            {
+                enrichment["source_asset"] = new
+                {
+                    id = sourceAsset.Id.ToString(),
+                    name = sourceAsset.Name,
+                    criticality = sourceAsset.Criticality.ToString().ToLowerInvariant(),
+                    owner = sourceAsset.Owner,
+                    asset_type = sourceAsset.AssetType.ToString().ToLowerInvariant(),
+                    tags = sourceAsset.Tags
+                };
+                _logger.LogDebug("Enriched source IP {SourceIp} with asset {AssetName}", 
+                    normalizedEvent.SourceIp, sourceAsset.Name);
+            }
+        }
+
+        // Enrich destination IP with asset information
+        if (!string.IsNullOrWhiteSpace(normalizedEvent.DestinationIp))
+        {
+            var destAsset = _assetCacheService.GetAsset(normalizedEvent.DestinationIp);
+            if (destAsset != null)
+            {
+                enrichment["destination_asset"] = new
+                {
+                    id = destAsset.Id.ToString(),
+                    name = destAsset.Name,
+                    criticality = destAsset.Criticality.ToString().ToLowerInvariant(),
+                    owner = destAsset.Owner,
+                    asset_type = destAsset.AssetType.ToString().ToLowerInvariant(),
+                    tags = destAsset.Tags
+                };
+                _logger.LogDebug("Enriched destination IP {DestinationIp} with asset {AssetName}", 
+                    normalizedEvent.DestinationIp, destAsset.Name);
             }
         }
 

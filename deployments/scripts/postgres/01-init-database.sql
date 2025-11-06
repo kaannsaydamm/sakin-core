@@ -75,11 +75,56 @@ INSERT INTO "SniData" ("sni", "srcIp", "dstIp", "protocol", "timestamp") VALUES
     ('www.youtube.com', '192.168.1.101', '142.250.185.46', 'TCP', CURRENT_TIMESTAMP - INTERVAL '2 minutes'),
     ('www.example.com', '10.0.0.50', '93.184.216.34', 'TCP', CURRENT_TIMESTAMP - INTERVAL '1 minute');
 
+-- Create Assets table
+-- Stores asset inventory information for tracking hosts, services, and criticality
+CREATE TABLE IF NOT EXISTS "Assets" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "name" TEXT NOT NULL,
+    "ip_address" INET UNIQUE,
+    "hostname" TEXT,
+    "asset_type" TEXT NOT NULL CHECK ("asset_type" IN ('host', 'service', 'database', 'firewall', 'network_device', 'iot', 'other')),
+    "criticality" TEXT NOT NULL CHECK ("criticality" IN ('low', 'medium', 'high', 'critical')),
+    "owner" TEXT,
+    "tags" TEXT[] DEFAULT '{}',
+    "description" TEXT,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for common queries
+CREATE INDEX IF NOT EXISTS "idx_assets_ip_address" ON "Assets"("ip_address");
+CREATE INDEX IF NOT EXISTS "idx_assets_hostname" ON "Assets"("hostname");
+CREATE INDEX IF NOT EXISTS "idx_assets_type" ON "Assets"("asset_type");
+CREATE INDEX IF NOT EXISTS "idx_assets_criticality" ON "Assets"("criticality");
+CREATE INDEX IF NOT EXISTS "idx_assets_owner" ON "Assets"("owner");
+
+-- Create trigger to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $
+BEGIN
+    NEW."updated_at" = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$ language 'plpgsql';
+
+CREATE TRIGGER update_assets_updated_at 
+    BEFORE UPDATE ON "Assets" 
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert sample assets for testing
+INSERT INTO "Assets" ("name", "ip_address", "hostname", "asset_type", "criticality", "owner", "tags", "description") VALUES
+    ('DC01', '192.168.1.10', 'DC01.corp.local', 'host', 'critical', 'IT-Core', ARRAY['domain-controller', 'windows', 'active-directory'], 'Primary Domain Controller'),
+    ('DB-PROD', '192.168.1.20', 'db-prod.corp.local', 'database', 'critical', 'Data-Team', ARRAY['mysql', 'production', 'critical-data'], 'Production MySQL Database Server'),
+    ('WEB-SRV-01', '192.168.1.30', 'web-srv-01.corp.local', 'host', 'high', 'Web-Team', ARRAY['web-server', 'nginx', 'production'], 'Production Web Server'),
+    ('LAB-01', '10.0.1.1', 'lab-01.test.local', 'host', 'low', 'Dev-Team', ARRAY['testing', 'development', 'windows'], 'Development Testing Machine'),
+    ('FW-EDGE', '192.168.1.1', NULL, 'firewall', 'critical', 'Security-Team', ARRAY['perimeter', 'cisco', 'asa'], 'Edge Firewall'),
+    ('SW-CORE-01', '192.168.1.5', 'sw-core-01.mgmt.local', 'network_device', 'high', 'Network-Team', ARRAY['switch', 'cisco', 'core'], 'Core Network Switch');
+
 -- Display initialization status
-DO $$
+DO $
 BEGIN
     RAISE NOTICE '✅ Database initialized successfully';
-    RAISE NOTICE '📊 Tables created: PacketData, SniData';
+    RAISE NOTICE '📊 Tables created: PacketData, SniData, Assets';
     RAISE NOTICE '🔍 View created: PacketSniView';
     RAISE NOTICE '📝 Sample data inserted for testing';
-END $$;
+END $;

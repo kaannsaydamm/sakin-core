@@ -74,6 +74,15 @@ var host = Host.CreateDefaultBuilder(args)
         // Add Redis client
         services.AddSingleton<IRedisClient, RedisClient>();
 
+        // Add memory caching
+        services.AddMemoryCache(options =>
+        {
+            options.SizeLimit = 10000;
+        });
+
+        // Register Asset Cache Service
+        services.AddSingleton<IAssetCacheService, AssetCacheService>();
+
         // Add correlation engine services
         services.AddSingleton<IRuleEvaluator, RuleEvaluator>();
         services.AddSingleton<IRuleEvaluatorV2, RuleEvaluatorV2>();

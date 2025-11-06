@@ -1,5 +1,8 @@
 using Sakin.Correlation.Persistence.DependencyInjection;
 using Sakin.Panel.Api.Services;
+using Sakin.Common.Cache;
+using Sakin.Common.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,8 +24,15 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Add database configuration
+builder.Services.AddScoped<NpgsqlConnection>(sp => 
+    new NpgsqlConnection(builder.Configuration.GetConnectionString("Postgres")));
+
+// Register Sakin services
+builder.Services.AddSakinCommon(builder.Configuration);
 builder.Services.AddCorrelationPersistence(builder.Configuration);
 builder.Services.AddScoped<IAlertService, AlertService>();
+builder.Services.AddScoped<IAssetService, AssetService>();
 
 var app = builder.Build();
 

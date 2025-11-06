@@ -77,6 +77,9 @@ var host = Host.CreateDefaultBuilder(args)
         // Register GeoIP service as singleton since DatabaseReader is expensive
         services.AddSingleton<IGeoIpService, GeoIpService>();
 
+        // Register Asset Cache Service
+        services.AddSingleton<IAssetCacheService, AssetCacheService>();
+
         services.AddSingleton<ParserRegistry>(sp =>
         {
             var registry = new ParserRegistry();

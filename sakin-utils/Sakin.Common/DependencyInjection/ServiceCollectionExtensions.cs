@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Sakin.Common.Cache;
 using Sakin.Common.Configuration;
@@ -35,6 +36,12 @@ namespace Sakin.Common.DependencyInjection
             
             services.AddSingleton<IRedisClient, RedisClient>();
             
+            return services;
+        }
+
+        public static IServiceCollection AddSakinCommon(this IServiceCollection services, IConfiguration configuration)
+        {
+            services.AddRedisClient();
             return services;
         }
     }
