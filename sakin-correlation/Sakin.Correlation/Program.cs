@@ -14,8 +14,11 @@ using Sakin.Correlation.Services;
 using Sakin.Correlation.Validation;
 using Sakin.Messaging.Configuration;
 using Sakin.Messaging.Consumer;
+using Sakin.Messaging.Producer;
 using Sakin.Messaging.Serialization;
 using Sakin.Common.Cache;
+using Sakin.Common.DependencyInjection;
+using Sakin.Common.Configuration;
 
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureLogging(logging =>
@@ -33,6 +36,9 @@ var host = Host.CreateDefaultBuilder(args)
         services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
         services.Configure<AggregationOptions>(configuration.GetSection(AggregationOptions.SectionName));
         services.Configure<RiskScoringConfiguration>(configuration.GetSection("RiskScoring"));
+
+        // Add SOAR configuration
+        services.AddSakinCommon(configuration);
 
         services.Configure<KafkaOptions>(options =>
         {
@@ -109,7 +115,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<RiskScoringWorker>();
         services.AddSingleton<UserRiskProfileWorker>();
         
-        // Update AlertCreatorService to include risk scoring worker
+        // Update AlertCreatorService to include risk scoring worker and SOAR publisher
         services.AddSingleton<IAlertCreatorServiceWithRiskScoring>(provider =>
         {
             var alertCreator = new AlertCreatorService(
@@ -117,7 +123,8 @@ var host = Host.CreateDefaultBuilder(args)
                 provider.GetRequiredService<IAssetCacheService>(),
                 provider.GetRequiredService<ILogger<AlertCreatorService>>(),
                 provider.GetRequiredService<IMetricsService>(),
-                provider.GetRequiredService<RiskScoringWorker>()
+                provider.GetRequiredService<RiskScoringWorker>(),
+                provider.GetService<IAlertActionPublisher>() // Optional dependency
             );
             return alertCreator;
         });
@@ -128,6 +135,10 @@ var host = Host.CreateDefaultBuilder(args)
         // Add messaging services
         services.AddSingleton<IMessageSerializer, JsonMessageSerializer>();
         services.AddSingleton<IKafkaConsumer, KafkaConsumer>();
+        services.AddSingleton<IKafkaProducer, KafkaProducer>();
+        
+        // Add SOAR services
+        services.AddSingleton<IAlertActionPublisher, AlertActionPublisher>();
         
         // Add health checks
         services.AddHealthChecks();

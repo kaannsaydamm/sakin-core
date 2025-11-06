@@ -11,4 +11,5 @@ public interface IAlertCreatorService
 public interface IAlertCreatorServiceWithRiskScoring : IAlertCreatorService
 {
     Task CreateAlertWithRiskScoringAsync(CorrelationRule rule, EventEnvelope eventEnvelope, CancellationToken cancellationToken = default);
+    Task CreateAlertWithPlaybookActionsAsync(CorrelationRuleV2 rule, EventEnvelope eventEnvelope, CancellationToken cancellationToken = default);
 }
