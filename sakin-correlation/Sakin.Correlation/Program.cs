@@ -85,6 +85,7 @@ var host = Host.CreateDefaultBuilder(args)
         // Add parser and validation services
         services.AddSingleton<IRuleValidator, RuleValidator>();
         services.AddSingleton<IRuleParser, RuleParser>();
+        services.AddSingleton<IConfigurationValidator, ConfigurationValidator>();
         
         // Add business services
         services.AddSingleton<IRuleLoaderService, RuleLoaderService>();
@@ -122,5 +123,10 @@ var host = Host.CreateDefaultBuilder(args)
         webBuilder.UseUrls("http://0.0.0.0:8080");
     })
     .Build();
+
+// Validate configuration on startup
+var configValidator = host.Services.GetRequiredService<IConfigurationValidator>();
+var configuration = host.Services.GetRequiredService<IConfiguration>();
+configValidator.ValidateConfiguration(configuration);
 
 await host.RunAsync();
