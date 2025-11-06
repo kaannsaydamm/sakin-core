@@ -46,6 +46,21 @@ public class AlertsController : ControllerBase
         return Ok(alerts);
     }
 
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(AlertResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken = default)
+    {
+        var alert = await _alertService.GetAlertByIdAsync(id, cancellationToken);
+
+        if (alert is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(alert);
+    }
+
     [HttpPost("{id:guid}/acknowledge")]
     [ProducesResponseType(typeof(AlertResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -54,6 +69,112 @@ public class AlertsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var alert = await _alertService.AcknowledgeAlertAsync(id, cancellationToken);
+
+        if (alert is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(alert);
+    }
+
+    [HttpPatch("{id:guid}/status")]
+    [ProducesResponseType(typeof(AlertResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateStatus(
+        Guid id,
+        [FromBody] StatusUpdateRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request is null || string.IsNullOrEmpty(request.Status))
+        {
+            return BadRequest("Status is required");
+        }
+
+        if (!Enum.TryParse<AlertStatus>(request.Status, true, out var status))
+        {
+            return BadRequest($"'{request.Status}' is not a valid status");
+        }
+
+        var alert = await _alertService.UpdateStatusAsync(
+            id, status, request.Comment, request.User, cancellationToken);
+
+        if (alert is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(alert);
+    }
+
+    [HttpPatch("{id:guid}/investigate")]
+    [ProducesResponseType(typeof(AlertResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> StartInvestigation(
+        Guid id,
+        [FromBody] CommentRequest? request,
+        CancellationToken cancellationToken = default)
+    {
+        var alert = await _alertService.StartInvestigationAsync(
+            id, request?.Comment, request?.User, cancellationToken);
+
+        if (alert is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(alert);
+    }
+
+    [HttpPatch("{id:guid}/resolve")]
+    [ProducesResponseType(typeof(AlertResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Resolve(
+        Guid id,
+        [FromBody] ResolutionRequest? request,
+        CancellationToken cancellationToken = default)
+    {
+        var alert = await _alertService.ResolveAsync(
+            id, request?.Reason, request?.Comment, request?.User, cancellationToken);
+
+        if (alert is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(alert);
+    }
+
+    [HttpPatch("{id:guid}/close")]
+    [ProducesResponseType(typeof(AlertResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Close(
+        Guid id,
+        [FromBody] CommentRequest? request,
+        CancellationToken cancellationToken = default)
+    {
+        var alert = await _alertService.CloseAsync(
+            id, request?.Comment, request?.User, cancellationToken);
+
+        if (alert is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(alert);
+    }
+
+    [HttpPatch("{id:guid}/false-positive")]
+    [ProducesResponseType(typeof(AlertResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> MarkFalsePositive(
+        Guid id,
+        [FromBody] ResolutionRequest? request,
+        CancellationToken cancellationToken = default)
+    {
+        var alert = await _alertService.MarkFalsePositiveAsync(
+            id, request?.Reason, request?.Comment, request?.User, cancellationToken);
 
         if (alert is null)
         {

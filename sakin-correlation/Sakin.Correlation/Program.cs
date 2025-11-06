@@ -36,6 +36,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
         services.Configure<AggregationOptions>(configuration.GetSection(AggregationOptions.SectionName));
         services.Configure<RiskScoringConfiguration>(configuration.GetSection("RiskScoring"));
+        services.Configure<AlertLifecycleOptions>(configuration.GetSection(AlertLifecycleOptions.SectionName));
 
         // Add SOAR configuration
         services.AddSakinCommon(configuration);
@@ -107,6 +108,8 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IRuleLoaderService, RuleLoaderService>();
         services.AddSingleton<IRuleLoaderServiceV2, RuleLoaderServiceV2>();
         services.AddSingleton<IAlertCreatorService, AlertCreatorService>();
+        services.AddScoped<IAlertDeduplicationService, AlertDeduplicationService>();
+        services.AddScoped<IAlertLifecycleService, AlertLifecycleService>();
         
         // Add risk scoring services
         services.AddSingleton<ITimeOfDayService, TimeOfDayService>();

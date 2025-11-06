@@ -36,4 +36,16 @@ public interface IAlertRepository
         CancellationToken cancellationToken = default);
 
     Task<AlertEntity> UpdateAsync(AlertEntity alert, CancellationToken cancellationToken = default);
+
+    Task<AlertRecord?> IncrementDedupAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
+
+    Task<AlertRecord?> GetByDedupKeyAsync(
+        string dedupKey,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AlertRecord>> GetStaleAlertsAsync(
+        DateTimeOffset since,
+        CancellationToken cancellationToken = default);
 }
