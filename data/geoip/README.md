@@ -1,55 +1,26 @@
-# MaxMind GeoLite2 Databases
+# GeoIP Data Directory
 
-This directory should contain MaxMind GeoLite2 database files for IP geolocation.
+This directory contains the MaxMind GeoLite2 database files for GeoIP enrichment.
 
-## Required Files
+## Download GeoLite2-City.mmdb
 
-- `GeoLite2-City.mmdb` - City-level geolocation database
-- `GeoLite2-ASN.mmdb` - ASN (Autonomous System Number) database
+To enable GeoIP enrichment, download the GeoLite2-City database from:
+https://dev.maxmind.com/geoip/geolite2-open-data-locations/
 
-## How to Obtain
+1. Create a free MaxMind account
+2. Download the GeoLite2-City.mmdb file
+3. Place it in this directory as `GeoLite2-City.mmdb`
 
-1. Sign up for a free MaxMind account at:
-   https://www.maxmind.com/en/geolite2/signup
+The database should be automatically mounted by Docker at `/data/GeoLite2-City.mmdb` inside the ingest container.
 
-2. Generate a license key in your account settings
+## File Structure
 
-3. Download the databases:
-   - Go to: https://www.maxmind.com/en/accounts/current/geoip/downloads
-   - Download "GeoLite2 City" (MMDB format)
-   - Download "GeoLite2 ASN" (MMDB format)
-
-4. Extract and place the `.mmdb` files in this directory
-
-## Automated Download (Alternative)
-
-If you have a MaxMind license key, you can use the GeoIP Update tool:
-
-```bash
-# Install geoipupdate
-# Ubuntu/Debian: apt-get install geoipupdate
-# macOS: brew install geoipupdate
-
-# Configure with your license key
-# Edit /usr/local/etc/GeoIP.conf or ~/.geoipupdate/GeoIP.conf
-
-# Run update
-geoipupdate -d /path/to/this/directory
+```
+/data/geoip/
+├── README.md                    # This file
+└── GeoLite2-City.mmdb          # MaxMind GeoLite2 City database (download separately)
 ```
 
-## Usage in Sakin Platform
+## Database Updates
 
-The GeoIP databases are used by the `sakin-ingest` service to enrich network events with:
-- Geographic location (country, city, coordinates)
-- ISP and organization information
-- ASN details
-
-## Updating Databases
-
-MaxMind updates GeoLite2 databases twice a week (Tuesdays and Fridays).
-Consider setting up automated updates using `geoipupdate` in production.
-
-## License
-
-GeoLite2 databases are distributed under the Creative Commons Attribution-ShareAlike 4.0 International License.
-See: https://dev.maxmind.com/geoip/geolite2-free-geolocation-data
+The GeoLite2 database is updated weekly. For production use, consider setting up automated updates to ensure accurate GeoIP data.

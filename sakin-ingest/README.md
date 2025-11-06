@@ -1,71 +1,106 @@
-# Sakin Ingest Worker Service
+# S.A.K.I.N. Ingest Service
 
-## Overview
-The Sakin Ingest worker is the entry point to the normalization pipeline. It consumes raw event envelopes from Kafka, applies the (currently trivial) normalization pass-through logic, and publishes the result to the downstream normalized events topic. This skeleton focuses on wiring together the messaging layer and establishing the background service infrastructure.
+The ingest service is responsible for consuming raw events from Kafka, normalizing them, and enriching them with additional metadata before publishing to downstream topics.
 
-## Current Capabilities
-- ✅ Kafka consumer subscribed to the `raw-events` topic
-- ✅ Logs every received envelope for observability
-- ✅ Copies the raw payload into a `NormalizedEvent` placeholder
-- ✅ Publishes the updated envelope to the `normalized-events` topic using the shared Kafka producer
-- ✅ Reuses shared models from `Sakin.Common` and messaging abstractions from `Sakin.Messaging`
+## Features
 
-## Project Layout
-```
-/sakin-ingest
-  ├── Sakin.Ingest/                # .NET 8 worker service project
-  │   ├── Program.cs               # Host builder & dependency injection
-  │   ├── Workers/EventIngestWorker.cs
-  │   ├── Configuration/IngestKafkaOptions.cs
-  │   ├── appsettings.json
-  │   └── appsettings.Development.json
-  ├── appsettings.json             # Default configuration (mirrors project file)
-  ├── appsettings.Development.json # Development overrides
-  └── Dockerfile                   # Multi-stage build for the worker
-```
+### Event Normalization
+- Supports multiple log formats: Windows EventLog, Syslog, Apache Access Logs, Fortinet
+- Extracts common fields: source/destination IPs, ports, protocols, timestamps
+- Handles parsing errors gracefully with passthrough normalization
 
-## Configuration
-The worker uses `appsettings.json` (with optional `appsettings.Development.json`) and environment variables. Core Kafka settings live under the `Kafka` section:
+### GeoIP Enrichment (Sprint 6)
+Enriches events with geographical data based on source and destination IP addresses.
 
+#### Configuration
 ```json
 {
-  "Kafka": {
-    "BootstrapServers": "localhost:9092",
-    "RawEventsTopic": "raw-events",
-    "NormalizedEventsTopic": "normalized-events",
-    "ConsumerGroup": "ingest-service",
-    "ClientId": "sakin-ingest"
+  "GeoIp": {
+    "Enabled": true,
+    "DatabasePath": "/data/GeoLite2-City.mmdb",
+    "CacheTtlSeconds": 3600,
+    "CacheMaxSize": 10000
   }
 }
 ```
 
-Environment variables can override any value using the standard double underscore notation, e.g. `Kafka__BootstrapServers` or `Kafka__ConsumerGroup`.
+#### Features
+- **Private IP Detection**: Automatically identifies private networks (10.x, 172.16-31.x, 192.168.x, 169.254.x, loopback)
+- **Caching**: In-memory caching with configurable TTL and size limits to improve performance
+- **Graceful Degradation**: Service continues to operate when GeoIP database is unavailable
+- **Public IP Resolution**: Uses MaxMind GeoLite2 database for public IP lookups
 
-## Running Locally
-1. Ensure Kafka is available (e.g. `docker compose -f deployments/docker-compose.dev.yml up kafka`).
-2. Restore and run the worker:
-   ```bash
-   dotnet restore
-   dotnet run --project sakin-ingest/Sakin.Ingest/Sakin.Ingest.csproj
-   ```
-3. The worker will begin consuming from `raw-events` and publishing to `normalized-events`.
+#### Enrichment Output
+GeoIP data is added to the `EventEnvelope.Enrichment` field:
 
-### Using Docker
-Build and run the containerised worker:
-```bash
-docker build -t sakin-ingest ./sakin-ingest
-docker run --rm \
-  -e Kafka__BootstrapServers=host.docker.internal:9092 \
-  -e Kafka__RawEventsTopic=raw-events \
-  -e Kafka__NormalizedEventsTopic=normalized-events \
-  -e Kafka__ConsumerGroup=ingest-service \
-  sakin-ingest
+```json
+{
+  "Enrichment": {
+    "source_geo": {
+      "country": "United States",
+      "countryCode": "US", 
+      "city": "New York",
+      "lat": 40.7128,
+      "lon": -74.0060,
+      "timezone": "America/New_York",
+      "isPrivate": false
+    },
+    "dest_geo": {
+      "country": "Private",
+      "countryCode": "PR",
+      "city": "Private Network", 
+      "isPrivate": true
+    }
+  }
+}
 ```
 
-## Next Steps
-- Implement real normalization and enrichment logic
-- Add validation using the event schema from `Sakin.Common`
-- Integrate metrics and health checks
-- Expand configuration to cover retry policies, batching, and advanced consumer settings
+#### Database Setup
+1. Download GeoLite2-City.mmdb from [MaxMind](https://dev.maxmind.com/geoip/geolite2-open-data-locations/)
+2. Place in `/data/geoip/GeoLite2-City.mmdb` (mounted in Docker container)
+3. Restart the ingest service
 
-This skeleton provides the foundations for those enhancements while ensuring the ingest service is already wired into the messaging ecosystem.
+## Architecture
+
+### Pipeline Flow
+1. **Consume**: Raw events from Kafka `raw-events` topic
+2. **Parse**: Using appropriate parser based on `sourceType`
+3. **Enrich**: Add GeoIP data for source/destination IPs
+4. **Publish**: Normalized events to Kafka `normalized-events` topic
+
+### Components
+- **EventIngestWorker**: Main worker service orchestrating the pipeline
+- **ParserRegistry**: Registry of available log parsers
+- **GeoIpService**: High-performance GeoIP lookup with caching
+- **Message Serialization**: JSON-based event envelope handling
+
+## Deployment
+
+### Docker Compose
+The service is configured in `deployments/docker-compose.dev.yml` with:
+- GeoIP database volume mount (`../data/geoip:/data:ro`)
+- Kafka, OpenSearch, ClickHouse dependencies
+- Environment-based configuration
+
+### Environment Variables
+- `Kafka__BootstrapServers`: Kafka connection string
+- `Kafka__RawEventsTopic`: Input topic for raw events
+- `Kafka__NormalizedEventsTopic`: Output topic for normalized events
+- `ASPNETCORE_ENVIRONMENT`: Runtime environment
+
+## Development
+
+### Building
+```bash
+dotnet build sakin-ingest/Sakin.Ingest/Sakin.Ingest.csproj
+```
+
+### Testing
+```bash
+dotnet test tests/Sakin.Ingest.Tests/Sakin.Ingest.Tests.csproj
+```
+
+### Adding New Parsers
+1. Implement `IParser` interface
+2. Register in `Program.cs` ParserRegistry
+3. Add tests in `tests/Sakin.Ingest.Tests/Parsers/`

@@ -9,6 +9,7 @@ volumes:
   zookeeper-data:
   opensearch-data:
   clickhouse-data:
+  geoip-data:
 
 services:
   # PostgreSQL - Primary database for network sensor and events
@@ -213,39 +214,33 @@ services:
   #     - NET_RAW
   #   restart: unless-stopped
 
-  # Ingest Service (placeholder)
-  # Uncomment when ready to deploy
-  # ingest:
-  #   build:
-  #     context: ../
-  #     dockerfile: sakin-ingest/Dockerfile
-  #   container_name: sakin-ingest
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     kafka:
-  #       condition: service_healthy
-  #     opensearch:
-  #       condition: service_healthy
-  #     clickhouse:
-  #       condition: service_healthy
-  #   environment:
-  #     - Database__Host=postgres
-  #     - Database__Port=5432
-  #     - Database__Database=network_db
-  #     - Database__Username=postgres
-  #     - Database__Password=postgres_dev_password
-  #     - Kafka__BootstrapServers=kafka:9092
-  #     - OpenSearch__Url=http://opensearch:9200
-  #     - ClickHouse__Host=clickhouse
-  #     - ClickHouse__Port=8123
-  #     - ClickHouse__Database=sakin_analytics
-  #     - ClickHouse__Username=clickhouse
-  #     - ClickHouse__Password=clickhouse_dev_password
-  #     - ASPNETCORE_ENVIRONMENT=Development
-  #   networks:
-  #     - sakin-network
-  #   restart: unless-stopped
+  # Ingest Service
+  ingest:
+    build:
+      context: ../
+      dockerfile: sakin-ingest/Dockerfile
+    container_name: sakin-ingest
+    depends_on:
+      kafka:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    environment:
+      - Kafka__BootstrapServers=kafka:9092
+      - OpenSearch__Url=http://opensearch:9200
+      - ClickHouse__Host=clickhouse
+      - ClickHouse__Port=8123
+      - ClickHouse__Database=sakin_analytics
+      - ClickHouse__Username=clickhouse
+      - ClickHouse__Password=clickhouse_dev_password
+      - ASPNETCORE_ENVIRONMENT=Development
+    volumes:
+      - ../data/geoip:/data:ro
+    networks:
+      - sakin-network
+    restart: unless-stopped
 
   # Correlation Service (placeholder)
   # Uncomment when ready to deploy
