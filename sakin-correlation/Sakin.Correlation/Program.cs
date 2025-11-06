@@ -12,6 +12,7 @@ using Sakin.Correlation.Validation;
 using Sakin.Messaging.Configuration;
 using Sakin.Messaging.Consumer;
 using Sakin.Messaging.Serialization;
+using Sakin.Common.Cache;
 
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureLogging(logging =>
@@ -26,6 +27,8 @@ var host = Host.CreateDefaultBuilder(args)
         // Configure Kafka worker options
         services.Configure<KafkaWorkerOptions>(configuration.GetSection(KafkaWorkerOptions.SectionName));
         services.Configure<RulesOptions>(configuration.GetSection(RulesOptions.SectionName));
+        services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
+        services.Configure<AggregationOptions>(configuration.GetSection(AggregationOptions.SectionName));
 
         services.Configure<KafkaOptions>(options =>
         {
@@ -65,8 +68,16 @@ var host = Host.CreateDefaultBuilder(args)
         // Add correlation persistence services
         services.AddCorrelationPersistence(configuration);
 
+        // Add Redis client
+        services.AddSingleton<IRedisClient, RedisClient>();
+
         // Add correlation engine services
         services.AddSingleton<IRuleEvaluator, RuleEvaluator>();
+        services.AddSingleton<IRuleEvaluatorV2, RuleEvaluatorV2>();
+        
+        // Add aggregation services
+        services.AddSingleton<IRedisStateManager, RedisStateManager>();
+        services.AddSingleton<IAggregationEvaluator, AggregationEvaluatorService>();
         
         // Add parser and validation services
         services.AddSingleton<IRuleValidator, RuleValidator>();
@@ -74,6 +85,7 @@ var host = Host.CreateDefaultBuilder(args)
         
         // Add business services
         services.AddSingleton<IRuleLoaderService, RuleLoaderService>();
+        services.AddSingleton<IRuleLoaderServiceV2, RuleLoaderServiceV2>();
         services.AddSingleton<IAlertCreatorService, AlertCreatorService>();
 
         // Add messaging services
@@ -82,6 +94,8 @@ var host = Host.CreateDefaultBuilder(args)
         
         // Add hosted services (order matters - rule loader should start before worker)
         services.AddHostedService<RuleLoaderService>();
+        services.AddHostedService<RuleLoaderServiceV2>();
+        services.AddHostedService<RedisCleanupService>();
         services.AddHostedService<Worker>();
     })
     .Build();

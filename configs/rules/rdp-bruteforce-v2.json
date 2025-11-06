@@ -1,0 +1,35 @@
+{
+  "id": "rule-bruteforce-01",
+  "name": "RDP Brute Force",
+  "description": "Detects RDP brute force attacks by counting failed login attempts per source IP",
+  "enabled": true,
+  "trigger": {
+    "source_types": ["windows-eventlog"],
+    "match": {"event_code":"4625"}
+  },
+  "condition": {
+    "aggregation": {
+      "function": "count",
+      "field": "Normalized.username",
+      "group_by": "Normalized.source_ip",
+      "window_seconds": 300
+    },
+    "operator": "gte",
+    "value": 10
+  },
+  "severity": "high",
+  "actions": [
+    {
+      "type": "alert",
+      "parameters": {
+        "title": "RDP Brute Force Detected",
+        "message": "Detected {{count}} failed login attempts from {{source_ip}} in 5 minutes"
+      }
+    }
+  ],
+  "metadata": {
+    "category": "brute_force",
+    "mitre_tactic": "Credential Access",
+    "mitre_technique": "Brute Force"
+  }
+}
