@@ -128,12 +128,12 @@ SLACK_WEBHOOK=$(kubectl get secret sakin-secrets -o jsonpath='{.data.slack-webho
 ### GDPR Compliance
 
 - Personal data is collected only when necessary
-- Users can request data deletion
+- Users can request data deletionhttps://github.com/kaannsaydamm/sakin-core/tree/main
 - Data retention policies are enforced
 - Data processing agreements are in place
 
 ### Data Retention
-
+https://github.com/kaannsaydamm/sakin-core/tree/main
 - Events: Stored for 30 days (configurable)
 - Alerts: Stored for 90 days (configurable)
 - Audit logs: Stored for 1 year (configurable)
@@ -313,10 +313,10 @@ When a CVE is discovered:
 ## Contact
 
 For security issues and questions:
-- **Private Security Report**: [security@yourdomain.com]
+- **Private Security Report**: [kaannsaydamm@proton.me]
 - **Security Advisory**: [GitHub Security Advisory]
 - **Responsible Disclosure**: Follow 90-day disclosure timeline
 
 ---
 
-Last Updated: November 2024
+Last Updated: November 2025
