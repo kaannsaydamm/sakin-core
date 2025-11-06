@@ -11,13 +11,16 @@ public class AlertCreatorService : IAlertCreatorService
 {
     private readonly IAlertRepository _alertRepository;
     private readonly ILogger<AlertCreatorService> _logger;
+    private readonly IMetricsService? _metricsService;
 
     public AlertCreatorService(
         IAlertRepository alertRepository,
-        ILogger<AlertCreatorService> logger)
+        ILogger<AlertCreatorService> logger,
+        IMetricsService? metricsService = null)
     {
         _alertRepository = alertRepository;
         _logger = logger;
+        _metricsService = metricsService;
     }
 
     public async Task CreateAlertAsync(CorrelationRule rule, EventEnvelope eventEnvelope, CancellationToken cancellationToken = default)
@@ -44,6 +47,8 @@ public class AlertCreatorService : IAlertCreatorService
             };
 
             var createdAlert = await _alertRepository.CreateAsync(alertRecord, cancellationToken);
+            
+            _metricsService?.IncrementAlertsCreated();
             
             _logger.LogInformation(
                 "Alert created successfully: {AlertId} for rule {RuleId} with severity {Severity}", 

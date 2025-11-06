@@ -19,6 +19,7 @@ public class Worker : BackgroundService
     private readonly IRuleLoaderServiceV2 _ruleLoaderV2;
     private readonly IRuleEvaluatorV2 _ruleEvaluator;
     private readonly IAlertCreatorService _alertCreator;
+    private readonly IMetricsService _metricsService;
 
     public Worker(
         IKafkaConsumer consumer,
@@ -27,7 +28,8 @@ public class Worker : BackgroundService
         IRuleLoaderService ruleLoader,
         IRuleLoaderServiceV2 ruleLoaderV2,
         IRuleEvaluatorV2 ruleEvaluator,
-        IAlertCreatorService alertCreator)
+        IAlertCreatorService alertCreator,
+        IMetricsService metricsService)
     {
         _consumer = consumer;
         _logger = logger;
@@ -36,6 +38,7 @@ public class Worker : BackgroundService
         _ruleLoaderV2 = ruleLoaderV2;
         _ruleEvaluator = ruleEvaluator;
         _alertCreator = alertCreator;
+        _metricsService = metricsService;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -98,8 +101,12 @@ public class Worker : BackgroundService
 
     private async Task ProcessEventAsync(EventEnvelope eventEnvelope, CancellationToken cancellationToken)
     {
+        var startTime = DateTimeOffset.UtcNow;
+        
         try
         {
+            _metricsService.IncrementEventsProcessed();
+            
             var legacyRules = _ruleLoader.Rules;
             var v2Rules = _ruleLoaderV2.RulesV2;
             _logger.LogDebug("Evaluating event {EventId} against {LegacyRuleCount} legacy rules and {V2RuleCount} V2 rules", 
@@ -110,6 +117,7 @@ public class Worker : BackgroundService
             {
                 try
                 {
+                    _metricsService.IncrementRulesEvaluated();
                     var evaluationResult = await _ruleEvaluator.EvaluateAsync(rule, eventEnvelope);
                     
                     if (evaluationResult.IsMatch && evaluationResult.ShouldTriggerAlert)
@@ -139,6 +147,7 @@ public class Worker : BackgroundService
             {
                 try
                 {
+                    _metricsService.IncrementRulesEvaluated();
                     var evaluationResult = await _ruleEvaluator.EvaluateAsync(rule, eventEnvelope);
                     
                     if (evaluationResult.IsMatch && evaluationResult.ShouldTriggerAlert)
@@ -164,10 +173,15 @@ public class Worker : BackgroundService
                         rule.Id, eventEnvelope.EventId);
                 }
             }
+            
+            var elapsedMs = (DateTimeOffset.UtcNow - startTime).TotalMilliseconds;
+            _metricsService.RecordProcessingLatency(elapsedMs);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing event {EventId}", eventEnvelope.EventId);
+            var elapsedMs = (DateTimeOffset.UtcNow - startTime).TotalMilliseconds;
+            _metricsService.RecordProcessingLatency(elapsedMs);
         }
     }
 

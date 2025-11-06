@@ -1,7 +1,10 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Prometheus;
 using Sakin.Correlation;
 using Sakin.Correlation.Configuration;
 using Sakin.Correlation.Engine;
@@ -87,16 +90,36 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IRuleLoaderService, RuleLoaderService>();
         services.AddSingleton<IRuleLoaderServiceV2, RuleLoaderServiceV2>();
         services.AddSingleton<IAlertCreatorService, AlertCreatorService>();
+        
+        // Add metrics service
+        services.AddSingleton<IMetricsService, MetricsService>();
 
         // Add messaging services
         services.AddSingleton<IMessageSerializer, JsonMessageSerializer>();
         services.AddSingleton<IKafkaConsumer, KafkaConsumer>();
+        
+        // Add health checks
+        services.AddHealthChecks();
         
         // Add hosted services (order matters - rule loader should start before worker)
         services.AddHostedService<RuleLoaderService>();
         services.AddHostedService<RuleLoaderServiceV2>();
         services.AddHostedService<RedisCleanupService>();
         services.AddHostedService<Worker>();
+    })
+    .ConfigureWebHostDefaults(webBuilder =>
+    {
+        webBuilder.Configure(app =>
+        {
+            app.UseRouting();
+            app.UseHttpMetrics();
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapMetrics();
+                endpoints.MapHealthChecks("/health");
+            });
+        });
+        webBuilder.UseUrls("http://0.0.0.0:8080");
     })
     .Build();
 

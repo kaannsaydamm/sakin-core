@@ -17,15 +17,18 @@ public class RedisStateManager : IRedisStateManager
     private readonly IRedisClient _redisClient;
     private readonly ILogger<RedisStateManager> _logger;
     private readonly RedisOptions _options;
+    private readonly IMetricsService? _metricsService;
 
     public RedisStateManager(
         IRedisClient redisClient,
         ILogger<RedisStateManager> logger,
-        IOptions<RedisOptions> options)
+        IOptions<RedisOptions> options,
+        IMetricsService? metricsService = null)
     {
         _redisClient = redisClient;
         _logger = logger;
         _options = options.Value;
+        _metricsService = metricsService;
     }
 
     public async Task<long> IncrementCounterAsync(string ruleId, string groupValue, long windowId)
@@ -34,11 +37,13 @@ public class RedisStateManager : IRedisStateManager
         
         try
         {
+            _metricsService?.IncrementRedisOperations();
             var count = await _redisClient.IncrementAsync(key);
             
             // Set TTL on first increment to ensure cleanup
             if (count == 1)
             {
+                _metricsService?.IncrementRedisOperations();
                 await _redisClient.StringSetAsync(key, count.ToString(), TimeSpan.FromSeconds(_options.DefaultTTL));
             }
             
@@ -58,6 +63,7 @@ public class RedisStateManager : IRedisStateManager
         
         try
         {
+            _metricsService?.IncrementRedisOperations();
             var countStr = await _redisClient.StringGetAsync(key);
             var count = long.TryParse(countStr, out var parsed) ? parsed : 0;
             

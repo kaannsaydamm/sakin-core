@@ -1,0 +1,132 @@
+version: '3.8'
+
+networks:
+  sakin-network:
+    driver: bridge
+
+volumes:
+  postgres-correlation-data:
+  redis-correlation-data:
+  kafka-correlation-data:
+  zookeeper-correlation-data:
+
+services:
+  # PostgreSQL for correlation alerts
+  postgres-correlation:
+    image: postgres:16-alpine
+    container_name: sakin-postgres-correlation
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sakin_correlation
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-correlation-data:/var/lib/postgresql/data
+    networks:
+      - sakin-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sakin_correlation"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for correlation state
+  redis-correlation:
+    image: redis:7-alpine
+    container_name: sakin-redis-correlation
+    command: redis-server --appendonly yes
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-correlation-data:/data
+    networks:
+      - sakin-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Zookeeper for Kafka
+  zookeeper-correlation:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: sakin-zookeeper-correlation
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2182:2181"
+    volumes:
+      - zookeeper-correlation-data:/var/lib/zookeeper/data
+    networks:
+      - sakin-network
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo 'ruok' | nc localhost 2181 | grep imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka for event streaming
+  kafka-correlation:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: sakin-kafka-correlation
+    depends_on:
+      - zookeeper-correlation
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-correlation:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-correlation:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 24
+    ports:
+      - "9093:9093"
+    volumes:
+      - kafka-correlation-data:/var/lib/kafka/data
+    networks:
+      - sakin-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # Correlation Engine
+  sakin-correlation:
+    build:
+      context: ..
+      dockerfile: sakin-correlation/Dockerfile
+    container_name: sakin-correlation-engine
+    depends_on:
+      postgres-correlation:
+        condition: service_healthy
+      redis-correlation:
+        condition: service_healthy
+      kafka-correlation:
+        condition: service_healthy
+    environment:
+      - Kafka__BootstrapServers=kafka-correlation:9092
+      - Kafka__Topic=normalized-events
+      - Kafka__ConsumerGroup=correlation-engine
+      - Database__Host=postgres-correlation
+      - Database__Port=5432
+      - Database__Database=sakin_correlation
+      - Database__Username=postgres
+      - Database__Password=postgres
+      - Redis__ConnectionString=redis-correlation:6379
+      - Redis__KeyPrefix=sakin:correlation:
+      - Redis__DefaultTTL=3600
+      - Aggregation__MaxWindowSize=86400
+      - Aggregation__CleanupInterval=300
+      - Rules__RulesPath=/app/configs/rules
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../configs/rules:/app/configs/rules:ro
+    networks:
+      - sakin-network
+    restart: unless-stopped
