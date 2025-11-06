@@ -68,15 +68,14 @@ var host = Host.CreateDefaultBuilder(args)
                 var baseUrl = providerOptions?.BaseUrl?.TrimEnd('/') ?? "https://otx.alienvault.com/api/v1";
                 client.BaseAddress = new Uri(baseUrl.EndsWith("/") ? baseUrl : baseUrl + "/");
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                client.Timeout = TimeSpan.FromSeconds(30);
 
                 if (!string.IsNullOrWhiteSpace(providerOptions?.ApiKey))
                 {
                     client.DefaultRequestHeaders.Remove("X-OTX-API-KEY");
                     client.DefaultRequestHeaders.Add("X-OTX-API-KEY", providerOptions.ApiKey);
                 }
-            })
-            .AddPolicyHandler(GetRetryPolicy())
-            .AddPolicyHandler(GetCircuitBreakerPolicy());
+            });
         services.AddTransient<IThreatIntelProvider, OtxProvider>();
 
         services.AddHttpClient<AbuseIpDbProvider>((provider, client) =>
@@ -87,15 +86,14 @@ var host = Host.CreateDefaultBuilder(args)
                 client.BaseAddress = new Uri(baseUrl.EndsWith("/") ? baseUrl : baseUrl + "/");
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("sakin-threat-intel-worker/1.0");
+                client.Timeout = TimeSpan.FromSeconds(30);
 
                 if (!string.IsNullOrWhiteSpace(providerOptions?.ApiKey))
                 {
                     client.DefaultRequestHeaders.Remove("Key");
                     client.DefaultRequestHeaders.Add("Key", providerOptions.ApiKey);
                 }
-            })
-            .AddPolicyHandler(GetRetryPolicy())
-            .AddPolicyHandler(GetCircuitBreakerPolicy());
+            });
         services.AddTransient<IThreatIntelProvider, AbuseIpDbProvider>();
 
         services.AddHostedService<ThreatIntelWorker>();
@@ -109,19 +107,3 @@ var host = Host.CreateDefaultBuilder(args)
     .Build();
 
 await host.RunAsync();
-
-static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
-{
-    return Policy
-        .Handle<HttpRequestException>()
-        .OrResult<HttpResponseMessage>(response => (int)response.StatusCode >= 500)
-        .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
-}
-
-static IAsyncPolicy<HttpResponseMessage> GetCircuitBreakerPolicy()
-{
-    return Policy
-        .Handle<HttpRequestException>()
-        .OrResult<HttpResponseMessage>(response => (int)response.StatusCode >= 500)
-        .CircuitBreakerAsync(3, TimeSpan.FromMinutes(5));
-}

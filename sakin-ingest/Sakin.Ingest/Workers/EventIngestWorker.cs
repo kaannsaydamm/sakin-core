@@ -39,8 +39,8 @@ public class EventIngestWorker(
     private readonly ThreatIntelOptions _threatIntelOptions = threatOptions.Value;
     private readonly ILogger<EventIngestWorker> _logger = logger;
 
-    private static readonly Regex DomainRegex = new("^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex HashRegex = new("^[a-f0-9]+$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex DomainRegex = new(@"^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex HashRegex = new(@"^[a-f0-9]+$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly JsonSerializerOptions ThreatIntelSerializerOptions = new()
     {
         PropertyNameCaseInsensitive = true

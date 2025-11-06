@@ -25,6 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="../../sakin-ingest/Sakin.Ingest/Sakin.Ingest.csproj" />
     <ProjectReference Include="../../sakin-utils/Sakin.Common/Sakin.Common.csproj" />
+    <ProjectReference Include="../../sakin-enrichment/Sakin.ThreatIntelService/Sakin.ThreatIntelService.csproj" />
   </ItemGroup>
 
 </Project>
