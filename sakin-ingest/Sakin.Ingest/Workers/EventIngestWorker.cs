@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Sakin.Common.Models;
 using Sakin.Ingest.Configuration;
 using Sakin.Ingest.Parsers;
+using Sakin.Ingest.Services;
 using Sakin.Messaging.Consumer;
 using Sakin.Messaging.Producer;
 
@@ -14,12 +15,14 @@ public class EventIngestWorker(
     IKafkaProducer producer,
     IOptions<IngestKafkaOptions> options,
     ParserRegistry parserRegistry,
+    IGeoIpService geoIpService,
     ILogger<EventIngestWorker> logger) : BackgroundService
 {
     private readonly IKafkaConsumer _consumer = consumer;
     private readonly IKafkaProducer _producer = producer;
     private readonly IngestKafkaOptions _options = options.Value;
     private readonly ParserRegistry _parserRegistry = parserRegistry;
+    private readonly IGeoIpService _geoIpService = geoIpService;
     private readonly ILogger<EventIngestWorker> _logger = logger;
 
     private string RawTopic => string.IsNullOrWhiteSpace(_options.RawEventsTopic)
@@ -120,9 +123,44 @@ public class EventIngestWorker(
             normalizedEvent = BuildPassthroughNormalizedEvent(envelope);
         }
 
+        // Apply GeoIP enrichment if enabled and we have IP addresses
+        var enrichedEnvelope = ApplyGeoIpEnrichment(envelope, normalizedEvent);
+
+        return enrichedEnvelope;
+    }
+
+    private EventEnvelope ApplyGeoIpEnrichment(EventEnvelope envelope, NormalizedEvent normalizedEvent)
+    {
+        var enrichment = new Dictionary<string, object>(envelope.Enrichment);
+
+        // Enrich source IP if present
+        if (!string.IsNullOrWhiteSpace(normalizedEvent.SourceIp))
+        {
+            var sourceGeo = _geoIpService.Lookup(normalizedEvent.SourceIp);
+            if (sourceGeo != null)
+            {
+                enrichment["source_geo"] = sourceGeo;
+                _logger.LogDebug("Enriched source IP {SourceIp} with GeoIP data: {Country}, {City}", 
+                    normalizedEvent.SourceIp, sourceGeo.Country, sourceGeo.City);
+            }
+        }
+
+        // Enrich destination IP if present
+        if (!string.IsNullOrWhiteSpace(normalizedEvent.DestinationIp))
+        {
+            var destGeo = _geoIpService.Lookup(normalizedEvent.DestinationIp);
+            if (destGeo != null)
+            {
+                enrichment["dest_geo"] = destGeo;
+                _logger.LogDebug("Enriched destination IP {DestinationIp} with GeoIP data: {Country}, {City}", 
+                    normalizedEvent.DestinationIp, destGeo.Country, destGeo.City);
+            }
+        }
+
         return envelope with
         {
-            Normalized = normalizedEvent
+            Normalized = normalizedEvent,
+            Enrichment = enrichment
         };
     }
 

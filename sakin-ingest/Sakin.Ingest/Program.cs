@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sakin.Ingest.Configuration;
 using Sakin.Ingest.Parsers;
+using Sakin.Ingest.Services;
 using Sakin.Ingest.Workers;
 using Sakin.Messaging.Configuration;
 using Sakin.Messaging.Consumer;
@@ -31,6 +32,7 @@ var host = Host.CreateDefaultBuilder(args)
 
         services.Configure<KafkaOptions>(configuration.GetSection(KafkaOptions.SectionName));
         services.Configure<IngestKafkaOptions>(configuration.GetSection(IngestKafkaOptions.SectionName));
+        services.Configure<GeoIpOptions>(configuration.GetSection(GeoIpOptions.SectionName));
 
         services.AddOptions<ConsumerOptions>()
             .Configure<IConfiguration>((options, config) =>
@@ -59,6 +61,15 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IMessageSerializer, JsonMessageSerializer>();
         services.AddSingleton<IKafkaProducer, KafkaProducer>();
         services.AddSingleton<IKafkaConsumer, KafkaConsumer>();
+
+        // Add memory caching with size limit
+        services.AddMemoryCache(options =>
+        {
+            options.SizeLimit = 10000; // Default cache size limit
+        });
+
+        // Register GeoIP service as singleton since DatabaseReader is expensive
+        services.AddSingleton<IGeoIpService, GeoIpService>();
 
         services.AddSingleton<ParserRegistry>(sp =>
         {
