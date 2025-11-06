@@ -17,6 +17,7 @@ public class RiskScoringService : IRiskScoringService
 {
     private readonly ITimeOfDayService _timeOfDayService;
     private readonly IUserRiskProfileService _userRiskProfileService;
+    private readonly IAnomalyDetectionService? _anomalyDetectionService;
     private readonly ILogger<RiskScoringService> _logger;
     private readonly RiskScoringConfiguration _config;
 
@@ -24,10 +25,12 @@ public class RiskScoringService : IRiskScoringService
         ITimeOfDayService timeOfDayService,
         IUserRiskProfileService userRiskProfileService,
         ILogger<RiskScoringService> logger,
-        IOptions<RiskScoringConfiguration> config)
+        IOptions<RiskScoringConfiguration> config,
+        IAnomalyDetectionService? anomalyDetectionService = null)
     {
         _timeOfDayService = timeOfDayService;
         _userRiskProfileService = userRiskProfileService;
+        _anomalyDetectionService = anomalyDetectionService;
         _logger = logger;
         _config = config.Value;
     }
@@ -67,7 +70,27 @@ public class RiskScoringService : IRiskScoringService
         factors["user_risk_boost"] = userRiskBoost;
 
         // 6. Anomaly score boost (0-20)
-        var anomalyBoost = ExtractAnomalyScoreFromEnvelope(envelope);
+        AnomalyScoreResult? anomalyResult = null;
+        double anomalyBoost = 0;
+        
+        if (_anomalyDetectionService != null && envelope.Normalized != null)
+        {
+            try
+            {
+                anomalyResult = await _anomalyDetectionService.CalculateAnomalyScoreAsync(envelope.Normalized);
+                anomalyBoost = anomalyResult.Score / 100.0 * _config.Factors.AnomalyMaxBoost;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to calculate anomaly score, falling back to enrichment");
+                anomalyBoost = ExtractAnomalyScoreFromEnvelope(envelope);
+            }
+        }
+        else
+        {
+            anomalyBoost = ExtractAnomalyScoreFromEnvelope(envelope);
+        }
+        
         factors["anomaly_boost"] = anomalyBoost;
 
         // Calculate final score using the weighted formula
@@ -79,7 +102,7 @@ public class RiskScoringService : IRiskScoringService
             Score = (int)Math.Round(finalScore),
             Level = GetRiskLevelFromScore((int)Math.Round(finalScore)),
             Factors = factors,
-            Reasoning = GenerateReasoning(factors, asset, threatIntelScore, isOffHours, username)
+            Reasoning = GenerateReasoning(factors, asset, threatIntelScore, isOffHours, username, anomalyResult)
         };
 
         _logger.LogDebug("Calculated risk score {Score} ({Level}) for alert {AlertId}", 
@@ -200,7 +223,8 @@ public class RiskScoringService : IRiskScoringService
         Asset? asset, 
         ThreatIntelScore? threatIntel, 
         bool isOffHours, 
-        string? username)
+        string? username,
+        AnomalyScoreResult? anomalyResult = null)
     {
         var reasons = new List<string>();
         
@@ -237,7 +261,14 @@ public class RiskScoringService : IRiskScoringService
         // Anomaly
         if (factors.TryGetValue("anomaly_boost", out var anomalyBoost) && anomalyBoost > 0)
         {
-            reasons.Add($"anomalous activity detected");
+            if (anomalyResult?.IsAnomalous == true)
+            {
+                reasons.Add($"anomalous activity detected: {anomalyResult.Reasoning}");
+            }
+            else
+            {
+                reasons.Add($"anomalous activity detected");
+            }
         }
 
         if (reasons.Count == 0)

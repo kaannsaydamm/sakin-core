@@ -37,6 +37,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.Configure<AggregationOptions>(configuration.GetSection(AggregationOptions.SectionName));
         services.Configure<RiskScoringConfiguration>(configuration.GetSection("RiskScoring"));
         services.Configure<AlertLifecycleOptions>(configuration.GetSection(AlertLifecycleOptions.SectionName));
+        services.Configure<AnomalyDetectionOptions>(configuration.GetSection("AnomalyDetection"));
 
         // Add SOAR configuration
         services.AddSakinCommon(configuration);
@@ -114,6 +115,7 @@ var host = Host.CreateDefaultBuilder(args)
         // Add risk scoring services
         services.AddSingleton<ITimeOfDayService, TimeOfDayService>();
         services.AddSingleton<IUserRiskProfileService, UserRiskProfileService>();
+        services.AddSingleton<IAnomalyDetectionService, AnomalyDetectionService>();
         services.AddSingleton<IRiskScoringService, RiskScoringService>();
         services.AddSingleton<RiskScoringWorker>();
         services.AddSingleton<UserRiskProfileWorker>();
