@@ -53,6 +53,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sakin-enrichment", "sakin-e
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.ThreatIntelService", "sakin-enrichment\Sakin.ThreatIntelService\Sakin.ThreatIntelService.csproj", "{8H9I0F1E-2D3E-4F5G-6H7I-8J9K0L1M2N3O}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sakin-analytics", "sakin-analytics", "{9I0J1F2E-3F4G-5H6I-7J8K-9L0M1N2O3P4Q}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Analytics.ClickHouseSink", "sakin-analytics\Sakin.Analytics.ClickHouseSink\Sakin.Analytics.ClickHouseSink.csproj", "{0J1K2G3F-4G5H-6I7J-8K9L-0M1N2O3P4Q5R}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Analytics.BaselineWorker", "sakin-analytics\Sakin.Analytics.BaselineWorker\Sakin.Analytics.BaselineWorker.csproj", "{1K2L3H4G-5H6I-7J8K-9L0M-1N2O3P4Q5R6S}"
+EndProject
 Global
     GlobalSection(SolutionConfigurationPlatforms) = preSolution
         Debug|Any CPU = Debug|Any CPU
@@ -127,6 +133,14 @@ Global
         {8H9I0F1E-2D3E-4F5G-6H7I-8J9K0L1M2N3O}.Debug|Any CPU.Build.0 = Debug|Any CPU
         {8H9I0F1E-2D3E-4F5G-6H7I-8J9K0L1M2N3O}.Release|Any CPU.ActiveCfg = Release|Any CPU
         {8H9I0F1E-2D3E-4F5G-6H7I-8J9K0L1M2N3O}.Release|Any CPU.Build.0 = Release|Any CPU
+        {0J1K2G3F-4G5H-6I7J-8K9L-0M1N2O3P4Q5R}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {0J1K2G3F-4G5H-6I7J-8K9L-0M1N2O3P4Q5R}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {0J1K2G3F-4G5H-6I7J-8K9L-0M1N2O3P4Q5R}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {0J1K2G3F-4G5H-6I7J-8K9L-0M1N2O3P4Q5R}.Release|Any CPU.Build.0 = Release|Any CPU
+        {1K2L3H4G-5H6I-7J8K-9L0M-1N2O3P4Q5R6S}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {1K2L3H4G-5H6I-7J8K-9L0M-1N2O3P4Q5R6S}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {1K2L3H4G-5H6I-7J8K-9L0M-1N2O3P4Q5R6S}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {1K2L3H4G-5H6I-7J8K-9L0M-1N2O3P4Q5R6S}.Release|Any CPU.Build.0 = Release|Any CPU
     EndGlobalSection
     GlobalSection(SolutionProperties) = preSolution
         HideSolutionNode = FALSE
@@ -147,5 +161,7 @@ Global
         {5E6F7D8C-9A0B-1C2D-3E4F-5G6H7I8J9K0L} = {4F5E6D7C-8B9A-0B1C-2D3E-4F5G6H7I8J9K}
         {6F7G8D9C-0B1C-2D3E-4F5G-6H7I8J9K0L1M} = {D5C301AC-C323-41A2-A1FD-72D0A658CBF0}
         {8H9I0F1E-2D3E-4F5G-6H7I-8J9K0L1M2N3O} = {7G8H9E0D-1C2D-3E4F-5G6H-7I8J9K0L1M2N}
+        {0J1K2G3F-4G5H-6I7J-8K9L-0M1N2O3P4Q5R} = {9I0J1F2E-3F4G-5H6I-7J8K-9L0M1N2O3P4Q}
+        {1K2L3H4G-5H6I-7J8K-9L0M-1N2O3P4Q5R6S} = {9I0J1F2E-3F4G-5H6I-7J8K-9L0M1N2O3P4Q}
     EndGlobalSection
 EndGlobal

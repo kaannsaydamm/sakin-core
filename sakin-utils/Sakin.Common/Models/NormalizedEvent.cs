@@ -42,5 +42,11 @@ namespace Sakin.Common.Models
         
         [JsonPropertyName("sensorId")]
         public string? SensorId { get; init; }
+        
+        [JsonPropertyName("username")]
+        public string? Username { get; init; }
+        
+        [JsonPropertyName("hostname")]
+        public string? Hostname { get; init; }
     }
 }
