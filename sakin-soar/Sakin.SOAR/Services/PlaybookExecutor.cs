@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Sakin.Common.Audit;
 using Sakin.Common.Models.SOAR;
 using Sakin.Correlation.Models;
 using System.Text.Json;
@@ -19,20 +20,20 @@ public class PlaybookExecutor : IPlaybookExecutor
     private readonly IPlaybookRepository _playbookRepository;
     private readonly INotificationService _notificationService;
     private readonly IAgentCommandDispatcher _agentCommandDispatcher;
-    private readonly IAuditService _auditService;
+    private readonly IAuditLogger _auditLogger;
     private readonly ILogger<PlaybookExecutor> _logger;
 
     public PlaybookExecutor(
         IPlaybookRepository playbookRepository,
         INotificationService notificationService,
         IAgentCommandDispatcher agentCommandDispatcher,
-        IAuditService auditService,
+        IAuditLogger auditLogger,
         ILogger<PlaybookExecutor> logger)
     {
         _playbookRepository = playbookRepository;
         _notificationService = notificationService;
         _agentCommandDispatcher = agentCommandDispatcher;
-        _auditService = auditService;
+        _auditLogger = auditLogger;
         _logger = logger;
     }
 
@@ -72,7 +73,7 @@ public class PlaybookExecutor : IPlaybookExecutor
             // Execute each step
             foreach (var step in playbook.Steps)
             {
-                var stepResult = await ExecuteStepAsync(step, alert, parameters, cancellationToken);
+                var stepResult = await ExecuteStepAsync(executionId, step, alert, parameters, cancellationToken);
                 stepResults.Add(stepResult);
 
                 // If step failed and no retry policy, stop execution
@@ -86,18 +87,22 @@ public class PlaybookExecutor : IPlaybookExecutor
             var success = stepResults.All(r => r.Success);
             var completedAt = DateTime.UtcNow;
 
-            await _auditService.WriteAuditEventAsync(new
-            {
-                Type = "playbook_execution_completed",
-                ExecutionId = executionId,
-                PlaybookId = playbookId,
-                AlertId = alert.Id,
-                Success = success,
-                StepCount = stepResults.Count,
-                StartedAt = startedAt,
-                CompletedAt = completedAt,
-                Duration = (completedAt - startedAt).TotalMilliseconds
-            }, cancellationToken);
+            await _auditLogger.LogAuditEventAsync(
+                alert.Source ?? "system",
+                "playbook.execution.completed",
+                executionId,
+                new
+                {
+                    ExecutionId = executionId,
+                    PlaybookId = playbookId,
+                    AlertId = alert.Id,
+                    Success = success,
+                    StepCount = stepResults.Count,
+                    StartedAt = startedAt,
+                    CompletedAt = completedAt,
+                    Duration = (completedAt - startedAt).TotalMilliseconds
+                },
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation(
                 "Playbook execution completed: {PlaybookId} for alert {AlertId} (ExecutionId: {ExecutionId}) - Success: {Success}",
@@ -115,24 +120,29 @@ public class PlaybookExecutor : IPlaybookExecutor
             
             _logger.LogError(ex, "Playbook execution failed: {PlaybookId} for alert {AlertId}", playbookId, alert.Id);
 
-            await _auditService.WriteAuditEventAsync(new
-            {
-                Type = "playbook_execution_failed",
-                ExecutionId = executionId,
-                PlaybookId = playbookId,
-                AlertId = alert.Id,
-                Error = ex.Message,
-                StackTrace = ex.StackTrace,
-                StartedAt = startedAt,
-                CompletedAt = completedAt,
-                Duration = (completedAt - startedAt).TotalMilliseconds
-            }, cancellationToken);
+            await _auditLogger.LogAuditEventAsync(
+                alert.Source ?? "system",
+                "playbook.execution.failed",
+                executionId,
+                new
+                {
+                    ExecutionId = executionId,
+                    PlaybookId = playbookId,
+                    AlertId = alert.Id,
+                    Error = ex.Message,
+                    StackTrace = ex.StackTrace,
+                    StartedAt = startedAt,
+                    CompletedAt = completedAt,
+                    Duration = (completedAt - startedAt).TotalMilliseconds
+                },
+                cancellationToken: cancellationToken);
 
             return new PlaybookExecutionResult(executionId, playbookId, false, stepResults, error, startedAt, completedAt);
         }
     }
 
     private async Task<StepExecutionResult> ExecuteStepAsync(
+        Guid executionId,
         PlaybookStep step,
         AlertEntity alert,
         Dictionary<string, object>? parameters,
@@ -155,17 +165,24 @@ public class PlaybookExecutor : IPlaybookExecutor
 
             var result = await ExecuteStepActionAsync(step, alert, parameters, cancellationToken);
             var completedAt = DateTime.UtcNow;
+            var stepCorrelationId = Guid.NewGuid();
 
-            await _auditService.WriteAuditEventAsync(new
-            {
-                Type = "step_execution_completed",
-                StepId = step.Id,
-                Action = step.Action,
-                Success = result.Success,
-                Output = result.Output,
-                Error = result.ErrorMessage,
-                Duration = (completedAt - stepStartedAt).TotalMilliseconds
-            }, cancellationToken);
+            await _auditLogger.LogAuditEventAsync(
+                alert.Source ?? "system",
+                "playbook.step.completed",
+                stepCorrelationId,
+                new
+                {
+                    ExecutionId = executionId,
+                    StepId = step.Id,
+                    Action = step.Action,
+                    AlertId = alert.Id,
+                    Success = result.Success,
+                    Output = result.Output,
+                    Error = result.ErrorMessage,
+                    Duration = (completedAt - stepStartedAt).TotalMilliseconds
+                },
+                cancellationToken: cancellationToken);
 
             return new StepExecutionResult(step.Id, result.Success, result.Output, result.ErrorMessage, stepStartedAt, completedAt);
         }
@@ -176,15 +193,21 @@ public class PlaybookExecutor : IPlaybookExecutor
             
             _logger.LogError(ex, "Step {StepId} execution failed", step.Id);
 
-            await _auditService.WriteAuditEventAsync(new
-            {
-                Type = "step_execution_failed",
-                StepId = step.Id,
-                Action = step.Action,
-                Error = ex.Message,
-                StackTrace = ex.StackTrace,
-                Duration = (completedAt - stepStartedAt).TotalMilliseconds
-            }, cancellationToken);
+            await _auditLogger.LogAuditEventAsync(
+                alert.Source ?? "system",
+                "playbook.step.failed",
+                Guid.NewGuid(),
+                new
+                {
+                    ExecutionId = executionId,
+                    StepId = step.Id,
+                    Action = step.Action,
+                    AlertId = alert.Id,
+                    Error = ex.Message,
+                    StackTrace = ex.StackTrace,
+                    Duration = (completedAt - stepStartedAt).TotalMilliseconds
+                },
+                cancellationToken: cancellationToken);
 
             return new StepExecutionResult(step.Id, false, null, error, stepStartedAt, completedAt);
         }

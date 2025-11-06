@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Sakin.Common.Audit;
 using Sakin.Common.Cache;
 using Sakin.Common.Configuration;
 using Sakin.Common.Validation;
@@ -49,9 +50,11 @@ namespace Sakin.Common.DependencyInjection
             services.Configure<NotificationOptions>(configuration.GetSection("Notifications"));
             services.Configure<AgentOptions>(configuration.GetSection("Agent"));
             services.Configure<SoarKafkaTopics>(configuration.GetSection("KafkaTopics"));
+            services.Configure<AuditLoggingOptions>(configuration.GetSection(AuditLoggingOptions.SectionName));
             
             // Register SOAR services
             services.AddSingleton<IPlaybookValidator, PlaybookValidator>();
+            services.AddSingleton<IAuditLogger, KafkaAuditLogger>();
             
             return services;
         }

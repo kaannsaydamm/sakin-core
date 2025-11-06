@@ -1,180 +1,160 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Prometheus;
-using Sakin.Correlation;
+using OpenTelemetry.Metrics;
+using Sakin.Common.Cache;
+using Sakin.Common.Configuration;
+using Sakin.Common.DependencyInjection;
+using Sakin.Common.Logging;
 using Sakin.Correlation.Configuration;
 using Sakin.Correlation.Engine;
 using Sakin.Correlation.Parsers;
 using Sakin.Correlation.Persistence.DependencyInjection;
+using Sakin.Correlation.Persistence.Repositories;
 using Sakin.Correlation.Services;
 using Sakin.Correlation.Validation;
 using Sakin.Messaging.Configuration;
 using Sakin.Messaging.Consumer;
 using Sakin.Messaging.Producer;
 using Sakin.Messaging.Serialization;
-using Sakin.Common.Cache;
-using Sakin.Common.DependencyInjection;
-using Sakin.Common.Configuration;
+using Serilog;
 
-var host = Host.CreateDefaultBuilder(args)
-    .ConfigureLogging(logging =>
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddUserSecrets<Program>();
+}
+
+builder.Host.UseSerilog((context, services, loggerConfiguration) =>
+{
+    TelemetryExtensions.ConfigureSakinSerilog(
+        loggerConfiguration,
+        context.Configuration,
+        context.HostingEnvironment.EnvironmentName);
+});
+
+builder.Services.AddSakinTelemetry(builder.Configuration);
+
+builder.Services.Configure<KafkaWorkerOptions>(builder.Configuration.GetSection(KafkaWorkerOptions.SectionName));
+builder.Services.Configure<RulesOptions>(builder.Configuration.GetSection(RulesOptions.SectionName));
+builder.Services.Configure<RedisOptions>(builder.Configuration.GetSection(RedisOptions.SectionName));
+builder.Services.Configure<AggregationOptions>(builder.Configuration.GetSection(AggregationOptions.SectionName));
+builder.Services.Configure<RiskScoringConfiguration>(builder.Configuration.GetSection("RiskScoring"));
+builder.Services.Configure<AlertLifecycleOptions>(builder.Configuration.GetSection(AlertLifecycleOptions.SectionName));
+builder.Services.Configure<AnomalyDetectionOptions>(builder.Configuration.GetSection("AnomalyDetection"));
+
+builder.Services.AddSakinCommon(builder.Configuration);
+
+builder.Services.Configure<KafkaOptions>(options =>
+{
+    var workerOptions = builder.Configuration
+        .GetSection(KafkaWorkerOptions.SectionName)
+        .Get<KafkaWorkerOptions>() ?? new KafkaWorkerOptions();
+
+    options.BootstrapServers = string.IsNullOrWhiteSpace(workerOptions.BootstrapServers)
+        ? options.BootstrapServers
+        : workerOptions.BootstrapServers.Trim();
+
+    options.ClientId = string.IsNullOrWhiteSpace(workerOptions.ClientId)
+        ? options.ClientId
+        : workerOptions.ClientId.Trim();
+});
+
+builder.Services.Configure<ConsumerOptions>(options =>
+{
+    var workerOptions = builder.Configuration
+        .GetSection(KafkaWorkerOptions.SectionName)
+        .Get<KafkaWorkerOptions>() ?? new KafkaWorkerOptions();
+
+    var consumerGroup = workerOptions.ConsumerGroup?.Trim();
+    var topic = workerOptions.Topic?.Trim();
+
+    if (!string.IsNullOrEmpty(consumerGroup))
     {
-        logging.ClearProviders();
-        logging.AddConsole();
-    })
-    .ConfigureServices((context, services) =>
-    {
-        IConfiguration configuration = context.Configuration;
+        options.GroupId = consumerGroup;
+    }
 
-        // Configure Kafka worker options
-        services.Configure<KafkaWorkerOptions>(configuration.GetSection(KafkaWorkerOptions.SectionName));
-        services.Configure<RulesOptions>(configuration.GetSection(RulesOptions.SectionName));
-        services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
-        services.Configure<AggregationOptions>(configuration.GetSection(AggregationOptions.SectionName));
-        services.Configure<RiskScoringConfiguration>(configuration.GetSection("RiskScoring"));
-        services.Configure<AlertLifecycleOptions>(configuration.GetSection(AlertLifecycleOptions.SectionName));
-        services.Configure<AnomalyDetectionOptions>(configuration.GetSection("AnomalyDetection"));
+    options.Topics = string.IsNullOrEmpty(topic)
+        ? Array.Empty<string>()
+        : new[] { topic };
+    options.EnableAutoCommit = true;
+});
 
-        // Add SOAR configuration
-        services.AddSakinCommon(configuration);
+builder.Services.AddCorrelationPersistence(builder.Configuration);
+builder.Services.AddSingleton<IRedisClient, RedisClient>();
 
-        services.Configure<KafkaOptions>(options =>
-        {
-            var workerOptions = configuration
-                .GetSection(KafkaWorkerOptions.SectionName)
-                .Get<KafkaWorkerOptions>() ?? new KafkaWorkerOptions();
+builder.Services.AddMemoryCache(options =>
+{
+    options.SizeLimit = 10000;
+});
 
-            options.BootstrapServers = string.IsNullOrWhiteSpace(workerOptions.BootstrapServers)
-                ? options.BootstrapServers
-                : workerOptions.BootstrapServers.Trim();
+builder.Services.AddSingleton<IAssetCacheService, AssetCacheService>();
+builder.Services.AddSingleton<IRuleEvaluator, RuleEvaluator>();
+builder.Services.AddSingleton<IRuleEvaluatorV2, RuleEvaluatorV2>();
+builder.Services.AddSingleton<IRedisStateManager, RedisStateManager>();
+builder.Services.AddSingleton<IAggregationEvaluator, AggregationEvaluatorService>();
+builder.Services.AddSingleton<IRuleValidator, RuleValidator>();
+builder.Services.AddSingleton<IRuleParser, RuleParser>();
+builder.Services.AddSingleton<IConfigurationValidator, ConfigurationValidator>();
+builder.Services.AddSingleton<IRuleLoaderService, RuleLoaderService>();
+builder.Services.AddSingleton<IRuleLoaderServiceV2, RuleLoaderServiceV2>();
+builder.Services.AddSingleton<IAlertCreatorService, AlertCreatorService>();
+builder.Services.AddScoped<IAlertDeduplicationService, AlertDeduplicationService>();
+builder.Services.AddScoped<IAlertLifecycleService, AlertLifecycleService>();
+builder.Services.AddSingleton<ITimeOfDayService, TimeOfDayService>();
+builder.Services.AddSingleton<IUserRiskProfileService, UserRiskProfileService>();
+builder.Services.AddSingleton<IAnomalyDetectionService, AnomalyDetectionService>();
+builder.Services.AddSingleton<IRiskScoringService, RiskScoringService>();
+builder.Services.AddSingleton<RiskScoringWorker>();
+builder.Services.AddSingleton<UserRiskProfileWorker>();
 
-            options.ClientId = string.IsNullOrWhiteSpace(workerOptions.ClientId)
-                ? options.ClientId
-                : workerOptions.ClientId.Trim();
-        });
+builder.Services.AddSingleton<IAlertCreatorServiceWithRiskScoring>(provider =>
+{
+    var alertCreator = new AlertCreatorService(
+        provider.GetRequiredService<IAlertRepository>(),
+        provider.GetRequiredService<IAssetCacheService>(),
+        provider.GetRequiredService<ILogger<AlertCreatorService>>(),
+        provider.GetRequiredService<IMetricsService>(),
+        provider.GetRequiredService<RiskScoringWorker>(),
+        provider.GetService<IAlertActionPublisher>());
 
-        services.Configure<ConsumerOptions>(options =>
-        {
-            var workerOptions = configuration
-                .GetSection(KafkaWorkerOptions.SectionName)
-                .Get<KafkaWorkerOptions>() ?? new KafkaWorkerOptions();
+    return alertCreator;
+});
 
-            var consumerGroup = workerOptions.ConsumerGroup?.Trim();
-            var topic = workerOptions.Topic?.Trim();
+builder.Services.AddSingleton<IMetricsService, MetricsService>();
+builder.Services.AddSingleton<IMessageSerializer, JsonMessageSerializer>();
+builder.Services.AddSingleton<IKafkaConsumer, KafkaConsumer>();
+builder.Services.AddSingleton<IKafkaProducer, KafkaProducer>();
+builder.Services.AddSingleton<IAlertActionPublisher, AlertActionPublisher>();
+builder.Services.AddHealthChecks();
 
-            if (!string.IsNullOrEmpty(consumerGroup))
-            {
-                options.GroupId = consumerGroup;
-            }
+builder.Services.AddHostedService<RuleLoaderService>();
+builder.Services.AddHostedService<RuleLoaderServiceV2>();
+builder.Services.AddHostedService<RedisCleanupService>();
+builder.Services.AddHostedService<UserRiskProfileWorker>();
+builder.Services.AddHostedService<RiskScoringWorker>();
+builder.Services.AddHostedService<Worker>();
 
-            options.Topics = string.IsNullOrEmpty(topic)
-                ? Array.Empty<string>()
-                : new[] { topic };
-            options.EnableAutoCommit = true;
-        });
+var app = builder.Build();
 
-        // Add correlation persistence services
-        services.AddCorrelationPersistence(configuration);
+using (var scope = app.Services.CreateScope())
+{
+    var configValidator = scope.ServiceProvider.GetRequiredService<IConfigurationValidator>();
+    configValidator.ValidateConfiguration(app.Configuration);
+}
 
-        // Add Redis client
-        services.AddSingleton<IRedisClient, RedisClient>();
+app.UseSerilogRequestLogging();
+app.MapPrometheusScrapingEndpoint();
+app.MapHealthChecks("/health");
 
-        // Add memory caching
-        services.AddMemoryCache(options =>
-        {
-            options.SizeLimit = 10000;
-        });
+await app.RunAsync();
 
-        // Register Asset Cache Service
-        services.AddSingleton<IAssetCacheService, AssetCacheService>();
-
-        // Add correlation engine services
-        services.AddSingleton<IRuleEvaluator, RuleEvaluator>();
-        services.AddSingleton<IRuleEvaluatorV2, RuleEvaluatorV2>();
-        
-        // Add aggregation services
-        services.AddSingleton<IRedisStateManager, RedisStateManager>();
-        services.AddSingleton<IAggregationEvaluator, AggregationEvaluatorService>();
-        
-        // Add parser and validation services
-        services.AddSingleton<IRuleValidator, RuleValidator>();
-        services.AddSingleton<IRuleParser, RuleParser>();
-        services.AddSingleton<IConfigurationValidator, ConfigurationValidator>();
-        
-        // Add business services
-        services.AddSingleton<IRuleLoaderService, RuleLoaderService>();
-        services.AddSingleton<IRuleLoaderServiceV2, RuleLoaderServiceV2>();
-        services.AddSingleton<IAlertCreatorService, AlertCreatorService>();
-        services.AddScoped<IAlertDeduplicationService, AlertDeduplicationService>();
-        services.AddScoped<IAlertLifecycleService, AlertLifecycleService>();
-        
-        // Add risk scoring services
-        services.AddSingleton<ITimeOfDayService, TimeOfDayService>();
-        services.AddSingleton<IUserRiskProfileService, UserRiskProfileService>();
-        services.AddSingleton<IAnomalyDetectionService, AnomalyDetectionService>();
-        services.AddSingleton<IRiskScoringService, RiskScoringService>();
-        services.AddSingleton<RiskScoringWorker>();
-        services.AddSingleton<UserRiskProfileWorker>();
-        
-        // Update AlertCreatorService to include risk scoring worker and SOAR publisher
-        services.AddSingleton<IAlertCreatorServiceWithRiskScoring>(provider =>
-        {
-            var alertCreator = new AlertCreatorService(
-                provider.GetRequiredService<IAlertRepository>(),
-                provider.GetRequiredService<IAssetCacheService>(),
-                provider.GetRequiredService<ILogger<AlertCreatorService>>(),
-                provider.GetRequiredService<IMetricsService>(),
-                provider.GetRequiredService<RiskScoringWorker>(),
-                provider.GetService<IAlertActionPublisher>() // Optional dependency
-            );
-            return alertCreator;
-        });
-        
-        // Add metrics service
-        services.AddSingleton<IMetricsService, MetricsService>();
-
-        // Add messaging services
-        services.AddSingleton<IMessageSerializer, JsonMessageSerializer>();
-        services.AddSingleton<IKafkaConsumer, KafkaConsumer>();
-        services.AddSingleton<IKafkaProducer, KafkaProducer>();
-        
-        // Add SOAR services
-        services.AddSingleton<IAlertActionPublisher, AlertActionPublisher>();
-        
-        // Add health checks
-        services.AddHealthChecks();
-        
-        // Add hosted services (order matters - rule loader should start before worker)
-        services.AddHostedService<RuleLoaderService>();
-        services.AddHostedService<RuleLoaderServiceV2>();
-        services.AddHostedService<RedisCleanupService>();
-        services.AddHostedService<UserRiskProfileWorker>();
-        services.AddHostedService<RiskScoringWorker>();
-        services.AddHostedService<Worker>();
-    })
-    .ConfigureWebHostDefaults(webBuilder =>
-    {
-        webBuilder.Configure(app =>
-        {
-            app.UseRouting();
-            app.UseHttpMetrics();
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapMetrics();
-                endpoints.MapHealthChecks("/health");
-            });
-        });
-        webBuilder.UseUrls("http://0.0.0.0:8080");
-    })
-    .Build();
-
-// Validate configuration on startup
-var configValidator = host.Services.GetRequiredService<IConfigurationValidator>();
-var configuration = host.Services.GetRequiredService<IConfiguration>();
-configValidator.ValidateConfiguration(configuration);
-
-await host.RunAsync();
+public partial class Program;
