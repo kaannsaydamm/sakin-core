@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sakin.Common.Models;
 using Sakin.Correlation.Configuration;
+using Sakin.Correlation.Engine;
+using Sakin.Correlation.Services;
 using Sakin.Messaging.Consumer;
 
 namespace Sakin.Correlation;
@@ -12,15 +14,24 @@ public class Worker : BackgroundService
     private readonly IKafkaConsumer _consumer;
     private readonly ILogger<Worker> _logger;
     private readonly KafkaWorkerOptions _options;
+    private readonly IRuleLoaderService _ruleLoader;
+    private readonly IRuleEvaluator _ruleEvaluator;
+    private readonly IAlertCreatorService _alertCreator;
 
     public Worker(
         IKafkaConsumer consumer,
         IOptions<KafkaWorkerOptions> options,
-        ILogger<Worker> logger)
+        ILogger<Worker> logger,
+        IRuleLoaderService ruleLoader,
+        IRuleEvaluator ruleEvaluator,
+        IAlertCreatorService alertCreator)
     {
         _consumer = consumer;
         _logger = logger;
         _options = options.Value;
+        _ruleLoader = ruleLoader;
+        _ruleEvaluator = ruleEvaluator;
+        _alertCreator = alertCreator;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -40,7 +51,7 @@ public class Worker : BackgroundService
         {
             try
             {
-                await _consumer.ConsumeAsync<NormalizedEvent>(result =>
+                await _consumer.ConsumeAsync<EventEnvelope>(result =>
                 {
                     if (result.Message is null)
                     {
@@ -52,13 +63,13 @@ public class Worker : BackgroundService
                     }
 
                     _logger.LogInformation(
-                        "Consumed normalized event {@Event} from topic {Topic}, partition {Partition}, offset {Offset}.",
+                        "Consumed event envelope {@EventEnvelope} from topic {Topic}, partition {Partition}, offset {Offset}.",
                         result.Message,
                         result.Topic,
                         result.Partition,
                         result.Offset);
 
-                    return Task.CompletedTask;
+                    return ProcessEventAsync(result.Message, stoppingToken);
                 }, stoppingToken);
             }
             catch (OperationCanceledException)
@@ -78,6 +89,48 @@ public class Worker : BackgroundService
                     break;
                 }
             }
+        }
+    }
+
+    private async Task ProcessEventAsync(EventEnvelope eventEnvelope, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var rules = _ruleLoader.Rules;
+            _logger.LogDebug("Evaluating event {EventId} against {RuleCount} rules", 
+                eventEnvelope.EventId, rules.Count);
+
+            foreach (var rule in rules)
+            {
+                try
+                {
+                    var evaluationResult = await _ruleEvaluator.EvaluateAsync(rule, eventEnvelope);
+                    
+                    if (evaluationResult.IsMatch && evaluationResult.ShouldTriggerAlert)
+                    {
+                        _logger.LogInformation(
+                            "Rule {RuleId} ({RuleName}) matched for event {EventId}, creating alert",
+                            rule.Id, rule.Name, eventEnvelope.EventId);
+
+                        await _alertCreator.CreateAlertAsync(rule, eventEnvelope, cancellationToken);
+                    }
+                    else if (evaluationResult.IsMatch)
+                    {
+                        _logger.LogDebug(
+                            "Rule {RuleId} ({RuleName}) matched but should not trigger alert (aggregation rule)",
+                            rule.Id, rule.Name);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error evaluating rule {RuleId} for event {EventId}", 
+                        rule.Id, eventEnvelope.EventId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing event {EventId}", eventEnvelope.EventId);
         }
     }
 
