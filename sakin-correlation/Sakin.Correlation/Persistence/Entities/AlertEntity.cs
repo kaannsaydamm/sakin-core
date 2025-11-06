@@ -26,6 +26,14 @@ public class AlertEntity
 
     public double? AggregatedValue { get; set; }
 
+    public int RiskScore { get; set; } = 0;
+
+    public string RiskLevel { get; set; } = "low";
+
+    public string? RiskFactors { get; set; }
+
+    public string? Reasoning { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }

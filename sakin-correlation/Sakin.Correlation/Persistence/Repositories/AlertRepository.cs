@@ -172,6 +172,39 @@ public class AlertRepository : IAlertRepository
         return MapToModel(entity);
     }
 
+    public async Task<AlertEntity> UpdateAsync(AlertEntity alert, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(alert);
+
+        var entity = await _context.Alerts.FirstOrDefaultAsync(a => a.Id == alert.Id, cancellationToken);
+
+        if (entity is null)
+        {
+            throw new InvalidOperationException($"Alert with ID {alert.Id} not found");
+        }
+
+        // Update all properties
+        entity.RuleId = alert.RuleId;
+        entity.RuleName = alert.RuleName;
+        entity.Severity = alert.Severity;
+        entity.Status = alert.Status;
+        entity.TriggeredAt = alert.TriggeredAt;
+        entity.Source = alert.Source;
+        entity.CorrelationContext = alert.CorrelationContext;
+        entity.MatchedConditions = alert.MatchedConditions;
+        entity.AggregationCount = alert.AggregationCount;
+        entity.AggregatedValue = alert.AggregatedValue;
+        entity.RiskScore = alert.RiskScore;
+        entity.RiskLevel = alert.RiskLevel;
+        entity.RiskFactors = alert.RiskFactors;
+        entity.Reasoning = alert.Reasoning;
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return entity;
+    }
+
     private static AlertEntity MapToEntity(AlertRecord alert)
     {
         return new AlertEntity

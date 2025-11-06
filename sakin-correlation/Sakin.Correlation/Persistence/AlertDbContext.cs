@@ -59,6 +59,20 @@ public class AlertDbContext : DbContext
 
             entity.Property(e => e.AggregatedValue);
 
+            entity.Property(e => e.RiskScore)
+                .HasDefaultValue(0);
+
+            entity.Property(e => e.RiskLevel)
+                .IsRequired()
+                .HasMaxLength(32)
+                .HasDefaultValue("low");
+
+            entity.Property(e => e.RiskFactors)
+                .HasColumnType("jsonb");
+
+            entity.Property(e => e.Reasoning)
+                .HasColumnType("text");
+
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
@@ -76,6 +90,15 @@ public class AlertDbContext : DbContext
 
             entity.HasIndex(e => new { e.Severity, e.TriggeredAt })
                 .HasDatabaseName("ix_alerts_severity_triggered_at");
+
+            entity.HasIndex(e => e.RiskScore)
+                .HasDatabaseName("ix_alerts_risk_score");
+
+            entity.HasIndex(e => e.RiskLevel)
+                .HasDatabaseName("ix_alerts_risk_level");
+
+            entity.HasIndex(e => new { e.RiskScore, e.TriggeredAt })
+                .HasDatabaseName("ix_alerts_risk_score_triggered_at");
         });
     }
 }
