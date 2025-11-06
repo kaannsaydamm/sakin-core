@@ -1,0 +1,33 @@
+[Unit]
+Description=SAKIN Linux Agent
+Documentation=https://github.com/sakin-security/sakin-core
+After=network.target
+Wants=network.target
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/dotnet /opt/sakin-agent/Sakin.Agent.Linux.dll
+WorkingDirectory=/opt/sakin-agent
+Restart=always
+RestartSec=10
+User=sakin-agent
+Group=sakin-agent
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/sakin-agent/logs /opt/sakin-agent/scripts
+RestrictSUIDSGID=true
+RemoveIPC=true
+PrivateDevices=true
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

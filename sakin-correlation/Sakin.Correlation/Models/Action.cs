@@ -38,7 +38,10 @@ public enum ActionType
     Block,
     
     [JsonPropertyName("quarantine")]
-    Quarantine
+    Quarantine,
+    
+    [JsonPropertyName("playbook")]
+    Playbook
 }
 
 public class RetryPolicy

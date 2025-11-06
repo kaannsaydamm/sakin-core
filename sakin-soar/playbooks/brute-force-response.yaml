@@ -1,0 +1,36 @@
+id: brute-force-response
+name: Brute Force Attack Response
+description: Responds to detected brute force attacks with blocking and notification
+enabled: true
+version: "1.0"
+steps:
+  - id: notify-security-team
+    action: notify_slack
+    parameters:
+      channel: "#security-alerts"
+      message: "🚨 Brute force attack detected! Multiple failed login attempts from {{alert.source_ip}}. Rule: {{alert.rule_name}}"
+  
+  - id: block-malicious-ip
+    action: dispatch_agent_command
+    parameters:
+      target_agent_id: "firewall-agent-01"
+      command: "BlockIp"
+      payload: "{{alert.source_ip}}"
+  
+  - id: create-jira-ticket
+    action: create_jira_ticket
+    parameters:
+      summary: "Brute Force Attack from {{alert.source_ip}}"
+      description: |
+        A brute force attack has been detected and automatically blocked.
+        
+        Alert Details:
+        - Alert ID: {{alert.id}}
+        - Source IP: {{alert.source_ip}}
+        - Rule: {{alert.rule_name}}
+        - Severity: {{alert.severity}}
+        - Timestamp: {{alert.triggered_at}}
+        
+        Action Taken:
+        - IP has been blocked on firewall
+        - Security team notified via Slack

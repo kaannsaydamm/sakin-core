@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Sakin.Common.Cache;
 using Sakin.Common.Configuration;
+using Sakin.Common.Validation;
 
 namespace Sakin.Common.DependencyInjection
 {
@@ -42,6 +43,16 @@ namespace Sakin.Common.DependencyInjection
         public static IServiceCollection AddSakinCommon(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddRedisClient();
+            
+            // Configure SOAR options
+            services.Configure<SoarOptions>(configuration.GetSection("SOAR"));
+            services.Configure<NotificationOptions>(configuration.GetSection("Notifications"));
+            services.Configure<AgentOptions>(configuration.GetSection("Agent"));
+            services.Configure<SoarKafkaTopics>(configuration.GetSection("KafkaTopics"));
+            
+            // Register SOAR services
+            services.AddSingleton<IPlaybookValidator, PlaybookValidator>();
+            
             return services;
         }
     }

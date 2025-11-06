@@ -15,19 +15,22 @@ public class AlertCreatorService : IAlertCreatorService, IAlertCreatorServiceWit
     private readonly ILogger<AlertCreatorService> _logger;
     private readonly IMetricsService? _metricsService;
     private readonly RiskScoringWorker? _riskScoringWorker;
+    private readonly IAlertActionPublisher? _alertActionPublisher;
 
     public AlertCreatorService(
         IAlertRepository alertRepository,
         IAssetCacheService assetCacheService,
         ILogger<AlertCreatorService> logger,
         IMetricsService? metricsService = null,
-        RiskScoringWorker? riskScoringWorker = null)
+        RiskScoringWorker? riskScoringWorker = null,
+        IAlertActionPublisher? alertActionPublisher = null)
     {
         _alertRepository = alertRepository;
         _assetCacheService = assetCacheService;
         _logger = logger;
         _metricsService = metricsService;
         _riskScoringWorker = riskScoringWorker;
+        _alertActionPublisher = alertActionPublisher;
     }
 
     public async Task CreateAlertAsync(CorrelationRule rule, EventEnvelope eventEnvelope, CancellationToken cancellationToken = default)
@@ -321,6 +324,105 @@ public class AlertCreatorService : IAlertCreatorService, IAlertCreatorServiceWit
             SeverityLevel.High => SeverityLevel.Critical,
             SeverityLevel.Critical => SeverityLevel.Critical, // Already at max
             _ => originalSeverity
+        };
+    }
+
+    public async Task CreateAlertWithPlaybookActionsAsync(CorrelationRuleV2 rule, EventEnvelope eventEnvelope, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Creating alert with playbook actions for rule {RuleId} - {RuleName}", rule.Id, rule.Name);
+
+            // Convert V2 rule to V1 for compatibility with existing logic
+            var v1Rule = ConvertToV1Rule(rule);
+            
+            // Create the alert using existing logic
+            await CreateAlertWithRiskScoringAsync(v1Rule, eventEnvelope, cancellationToken);
+
+            // Check if rule has playbook actions and publish them
+            if (rule.Actions?.Any(a => a.Type == ActionType.Playbook) == true && _alertActionPublisher != null)
+            {
+                // We need to get the created alert - for now, we'll query it back
+                // In a real implementation, we'd modify CreateAlertWithRiskScoringAsync to return the alert
+                var recentAlerts = await _alertRepository.GetAlertsByRuleIdAsync(rule.Id, DateTime.UtcNow.AddMinutes(-1), cancellationToken);
+                var latestAlert = recentAlerts.OrderByDescending(a => a.CreatedAt).FirstOrDefault();
+                
+                if (latestAlert != null)
+                {
+                    var alertEntity = ConvertAlertRecordToEntity(latestAlert, eventEnvelope);
+                    await _alertActionPublisher.PublishAsync(alertEntity, rule, cancellationToken);
+                    
+                    _logger.LogInformation("Published playbook action for alert {AlertId} from rule {RuleId}", latestAlert.Id, rule.Id);
+                }
+                else
+                {
+                    _logger.LogWarning("Could not find created alert for rule {RuleId} to publish playbook actions", rule.Id);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create alert with playbook actions for rule {RuleId}", rule.Id);
+            throw;
+        }
+    }
+
+    private static CorrelationRule ConvertToV1Rule(CorrelationRuleV2 v2Rule)
+    {
+        return new CorrelationRule
+        {
+            Id = v2Rule.Id,
+            Name = v2Rule.Name,
+            Description = v2Rule.Description,
+            Severity = v2Rule.Severity,
+            Enabled = v2Rule.Enabled,
+            Triggers = v2Rule.Triggers?.Select(t => new Trigger
+            {
+                Type = t.Type.ToString(),
+                EventType = t.EventType,
+                Source = t.Source,
+                Filters = t.Filters
+            }).ToList() ?? new(),
+            Conditions = v2Rule.Conditions?.Select(c => new Condition
+            {
+                Field = c.Field,
+                Operator = c.Operator.ToString(),
+                Value = c.Value,
+                CaseSensitive = c.CaseSensitive,
+                Negate = c.Negate
+            }).ToList() ?? new(),
+            Actions = v2Rule.Actions?.Select(a => new Models.Action
+            {
+                Type = a.Type,
+                Parameters = a.Parameters,
+                Delay = a.Delay,
+                Retry = a.Retry != null ? new Models.RetryPolicy
+                {
+                    Attempts = a.Retry.Attempts,
+                    Delay = a.Retry.Delay,
+                    Backoff = a.Retry.Backoff.ToString()
+                } : null
+            }).ToList() ?? new()
+        };
+    }
+
+    private static AlertEntity ConvertAlertRecordToEntity(AlertRecord alertRecord, EventEnvelope eventEnvelope)
+    {
+        return new AlertEntity
+        {
+            Id = alertRecord.Id,
+            RuleId = alertRecord.RuleId,
+            RuleName = alertRecord.RuleName,
+            Severity = alertRecord.Severity.ToString().ToLowerInvariant(),
+            Status = alertRecord.Status.ToString().ToLowerInvariant(),
+            TriggeredAt = alertRecord.TriggeredAt,
+            Source = alertRecord.Source,
+            CorrelationContext = JsonSerializer.Serialize(alertRecord.Context),
+            MatchedConditions = JsonSerializer.Serialize(alertRecord.MatchedConditions),
+            AggregationCount = alertRecord.AggregationCount,
+            AggregatedValue = alertRecord.AggregatedValue,
+            CreatedAt = alertRecord.CreatedAt,
+            UpdatedAt = alertRecord.UpdatedAt
         };
     }
 }

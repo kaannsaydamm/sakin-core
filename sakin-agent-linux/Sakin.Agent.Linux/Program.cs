@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Sakin.Agents.Windows.Configuration;
-using Sakin.Agents.Windows.Messaging;
-using Sakin.Agents.Windows.Services;
+using Sakin.Agent.Linux.Configuration;
+using Sakin.Agent.Linux.Services;
 using Sakin.Common.DependencyInjection;
 using Sakin.Messaging.Configuration;
 using Sakin.Messaging.Consumer;
@@ -11,14 +10,12 @@ using Sakin.Messaging.Producer;
 using Sakin.Messaging.Serialization;
 
 var host = Host.CreateDefaultBuilder(args)
-    .UseWindowsService()
+    .UseSystemd()
     .ConfigureServices((context, services) =>
     {
         IConfiguration configuration = context.Configuration;
 
         services.Configure<AgentOptions>(configuration.GetSection(AgentOptions.SectionName));
-        services.Configure<EventLogCollectorOptions>(configuration.GetSection(EventLogCollectorOptions.SectionName));
-        services.Configure<EventLogKafkaOptions>(configuration.GetSection(EventLogKafkaOptions.SectionName));
         services.Configure<KafkaOptions>(configuration.GetSection(KafkaOptions.SectionName));
         services.Configure<ProducerOptions>(configuration.GetSection(ProducerOptions.SectionName));
 
@@ -27,7 +24,6 @@ var host = Host.CreateDefaultBuilder(args)
 
         services.AddSingleton<IMessageSerializer, JsonMessageSerializer>();
         services.AddSingleton<IKafkaProducer, KafkaProducer>();
-        services.AddSingleton<IEventLogPublisher, EventLogPublisher>();
         
         // Add SOAR agent services
         services.AddSingleton<IAgentCommandHandler, AgentCommandHandler>();
@@ -47,8 +43,8 @@ var host = Host.CreateDefaultBuilder(args)
         });
         
         // Add hosted services
-        services.AddHostedService<EventLogCollectorService>();
         services.AddHostedService<AgentCommandWorker>();
+        services.AddHostedService<AgentStatusWorker>();
     })
     .Build();
 

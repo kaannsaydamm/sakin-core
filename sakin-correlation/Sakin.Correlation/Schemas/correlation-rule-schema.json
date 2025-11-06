@@ -156,7 +156,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["alert", "webhook", "email", "script", "log", "block", "quarantine"]
+          "enum": ["alert", "webhook", "email", "script", "log", "block", "quarantine", "playbook"]
         },
         "parameters": {
           "type": "object",
