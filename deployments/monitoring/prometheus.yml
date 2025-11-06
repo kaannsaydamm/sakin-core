@@ -1,0 +1,82 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: sakin-platform
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+rule_files:
+  - /etc/prometheus/rules/alert-rules.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090
+
+  - job_name: sakin-ingest
+    static_configs:
+      - targets:
+          - ingest:8080
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: sakin-correlation
+    static_configs:
+      - targets:
+          - correlation:8080
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: sakin-soar
+    static_configs:
+      - targets:
+          - soar:8080
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: sakin-panel-api
+    static_configs:
+      - targets:
+          - panel-api:8080
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: sakin-clickhouse-sink
+    static_configs:
+      - targets:
+          - clickhouse-sink:8080
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: sakin-baseline-worker
+    static_configs:
+      - targets:
+          - baseline-worker:8080
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: clickhouse
+    static_configs:
+      - targets:
+          - clickhouse:8123
+
+  - job_name: kafka
+    static_configs:
+      - targets:
+          - kafka:9092
+
+  - job_name: redis
+    static_configs:
+      - targets:
+          - redis:6379
+
+  - job_name: postgres
+    static_configs:
+      - targets:
+          - postgres:5432

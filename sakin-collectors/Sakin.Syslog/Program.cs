@@ -1,30 +1,51 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Sakin.Syslog.Configuration;
-using Sakin.Syslog.Messaging;
-using Sakin.Syslog.Services;
+using OpenTelemetry.Metrics;
+using Sakin.Common.Logging;
 using Sakin.Messaging.Configuration;
 using Sakin.Messaging.Producer;
 using Sakin.Messaging.Serialization;
+using Sakin.Syslog.Configuration;
+using Sakin.Syslog.Messaging;
+using Sakin.Syslog.Services;
+using Serilog;
 
-var host = Host.CreateDefaultBuilder(args)
-    .ConfigureServices((context, services) =>
-    {
-        IConfiguration configuration = context.Configuration;
+var builder = WebApplication.CreateBuilder(args);
 
-        services.Configure<AgentOptions>(configuration.GetSection(AgentOptions.SectionName));
-        services.Configure<SyslogOptions>(configuration.GetSection(SyslogOptions.SectionName));
-        services.Configure<SyslogKafkaOptions>(configuration.GetSection(SyslogKafkaOptions.SectionName));
-        services.Configure<KafkaOptions>(configuration.GetSection(KafkaOptions.SectionName));
-        services.Configure<ProducerOptions>(configuration.GetSection(ProducerOptions.SectionName));
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
 
-        services.AddSingleton<IMessageSerializer, JsonMessageSerializer>();
-        services.AddSingleton<IKafkaProducer, KafkaProducer>();
-        services.AddSingleton<ISyslogPublisher, SyslogPublisher>();
-        services.AddSingleton<SyslogParser>();
-        services.AddHostedService<SyslogListenerService>();
-    })
-    .Build();
+builder.Host.UseSerilog((context, services, loggerConfiguration) =>
+{
+    TelemetryExtensions.ConfigureSakinSerilog(
+        loggerConfiguration,
+        context.Configuration,
+        context.HostingEnvironment.EnvironmentName);
+});
 
-host.Run();
+builder.Services.AddSakinTelemetry(builder.Configuration);
+
+builder.Services.Configure<AgentOptions>(builder.Configuration.GetSection(AgentOptions.SectionName));
+builder.Services.Configure<SyslogOptions>(builder.Configuration.GetSection(SyslogOptions.SectionName));
+builder.Services.Configure<SyslogKafkaOptions>(builder.Configuration.GetSection(SyslogKafkaOptions.SectionName));
+builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection(KafkaOptions.SectionName));
+builder.Services.Configure<ProducerOptions>(builder.Configuration.GetSection(ProducerOptions.SectionName));
+
+builder.Services.AddSingleton<IMessageSerializer, JsonMessageSerializer>();
+builder.Services.AddSingleton<IKafkaProducer, KafkaProducer>();
+builder.Services.AddSingleton<ISyslogPublisher, SyslogPublisher>();
+builder.Services.AddSingleton<SyslogParser>();
+builder.Services.AddHostedService<SyslogListenerService>();
+
+var app = builder.Build();
+
+app.UseSerilogRequestLogging();
+app.MapPrometheusScrapingEndpoint();
+app.MapGet("/healthz", () => Results.Ok("healthy"));
+
+await app.RunAsync();
+
+public partial class Program;

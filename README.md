@@ -83,28 +83,27 @@ Platform dokümantasyonu.
    cd sakin-core
    ```
 
-2. Docker Compose ile altyapıyı başlatın:
+2. Environment dosyasını hazırlayın:
    ```sh
    cd deployments
-   docker compose -f docker compose.dev.yml up -d
+   cp .env.example .env
+   # Slack webhook URL'sini düzenleyin (opsiyonel):
+   # SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
    ```
 
-3. Servislerin hazır olmasını bekleyin (1-2 dakika):
+3. Docker Compose ile altyapıyı başlatın:
+   ```sh
+   docker compose -f docker-compose.dev.yml up -d
+   ```
+
+4. Servislerin hazır olmasını bekleyin (2-3 dakika):
    ```sh
    ./scripts/verify-services.sh
    ```
 
-4. OpenSearch indekslerini oluşturun:
+5. OpenSearch indekslerini oluşturun:
    ```sh
    ./scripts/opensearch/init-indices.sh
-   ```
-
-5. Network sensor'ü çalıştırın:
-   ```sh
-   cd ../sakin-core/services/network-sensor
-   export Database__Host=localhost
-   export Database__Password=postgres_dev_password
-   sudo dotnet run
    ```
 
 **Başlatılan servisler:**
@@ -113,8 +112,23 @@ Platform dokümantasyonu.
 - ✅ Kafka + Zookeeper (9092) - Message queue
 - ✅ OpenSearch (9200) + Dashboards (5601) - Search & analytics
 - ✅ ClickHouse (8123) - OLAP analytics
+- ✅ Prometheus (9090) - Metrics collection
+- ✅ Grafana (3000) - Dashboards & visualization
+- ✅ Alertmanager (9093) - Alert routing
+- ✅ Jaeger (16686) - Distributed tracing
+- ✅ SOAR (8080) - Security automation
+- ✅ Baseline Worker - Anomaly detection
 
-Detaylı kurulum ve kullanım için: [Docker Setup Guide](./deployments/DOCKER_SETUP.md)
+**Varsayılan Erişim Noktaları:**
+- Panel UI: http://localhost:5173 (React)
+- Panel API: http://localhost:5000 (Swagger)
+- Grafana: http://localhost:3000 (admin / admin)
+- Prometheus: http://localhost:9090
+- Jaeger: http://localhost:16686
+- OpenSearch: http://localhost:9200
+- OpenSearch Dashboards: http://localhost:5601
+
+Detaylı kurulum ve kullanım için: [Docker Setup Guide](./deployments/README.md)
 
 ### Manuel Kurulum (Network Sensor)
 
@@ -158,22 +172,47 @@ Detaylı kurulum için: [network-sensor README](./sakin-core/services/network-se
 Sakin platformu mikroservis mimarisini takip eder:
 
 ```
-[Collectors] ──▶ [Ingest] ──▶ [Message Bridge] ──▶ [Correlation] ──▶ [SOAR]
-     │                                                      │              │
-     ├──────────────────▶ [PostgreSQL] ◀──────────────────┘              │
-     │                                                                     │
-[Network Sensor]                                                          │
-                                                                           │
-                                    [Web Panel] ◀─────────────────────────┘
+[Collectors] ──▶ [Ingest] ──▶ [Kafka] ──▶ [Correlation] ──▶ [SOAR] ──▶ [Agents]
+     │                            │             │
+     ├────────────────────────────┼─────────────┼──────────────┐
+     │                            │             │              │
+[Network Sensor]          [Enrichment]  [ClickHouse Sink]  [Baseline Worker]
+                                │             │
+                          [GeoIP/TI]   [Anomaly Detection]
+                                │             │
+                          [PostgreSQL]   [Redis] ◀──────┐
+                                │                       │
+                                └──────────────▶ [Analytics Pipeline]
+
+                    ┌─────────────────────────────────┐
+                    │   Observability Stack           │
+                    ├─────────────────────────────────┤
+                    │ Prometheus (Metrics)            │
+                    │ Jaeger (Tracing)                │
+                    │ Serilog (Logs)                  │
+                    │ Grafana (Dashboards)            │
+                    └─────────────────────────────────┘
+                                 │
+                    [Web Panel] ◀─┘
 ```
+
+**Sprint 7 Yenilikler:**
+- OpenTelemetry entegrasyonu (Prometheus metrics, Jaeger traces, JSON logs)
+- SOAR Security Automation servisi
+- ClickHouse analitikleri ve Baseline Worker ile anomali tespiti
+- Prometheus + Grafana monitoring stack
+- Yapılandırılmış audit logging pipeline
 
 **Veri Akışı:**
 1. **Network Sensor** ve **Collectors** güvenlik verisi toplar
-2. **Ingest** katmanı veriyi normalize eder ve zenginleştirir
-3. **Message Bridge** servisleri asenkron olarak bağlar
-4. **Correlation** olayları analiz eder ve tehdit tespit eder
-5. **SOAR** otomatik yanıt akışlarını yürütür
-6. **Panel** görselleştirme ve yönetim sağlar
+2. **Ingest** katmanı veriyi normalize eder, GeoIP ve Threat Intel ile zenginleştirir
+3. **Kafka** servisleri asenkron olarak bağlar
+4. **Correlation** olayları analiz eder ve risk skorlama ile tehdit tespit eder
+5. **ClickHouse Sink** olayları analytics için depolar
+6. **Baseline Worker** anomali tespiti için istatistiksel profil oluşturur
+7. **SOAR** otomatik yanıt akışlarını yürütür ve playbook'ları çalıştırır
+8. **Panel** görselleştirme, araştırma ve yönetim sağlar
+9. **Observability Stack** tüm sistemi izler ve metrikleri toplar
 
 ## 🛠️ Geliştirme
 
@@ -195,8 +234,17 @@ dotnet test
 
 ## 📚 Dokümantasyon
 
+**Sprint 7 (DevOps & Monitoring)**
+- [Monitoring Stack Guide](./deployments/monitoring/README.md) - Prometheus, Grafana, Alertmanager setup
+- [CHANGELOG.md](./CHANGELOG.md) - Tüm sürüm ve özellik değişiklikleri
+- [Anomaly Detection Guide](./docs/anomaly-detection.md) - ML/Baseline mekanizması
+- [Alert Lifecycle Guide](./docs/alert-lifecycle.md) - Alert durumu yönetimi
+- [SOAR Documentation](./docs/sprint7-soar.md) - Playbook ve otomasyon
+
+**Genel Dokümantasyon**
 - [Mimari Dokümantasyon](./docs/README.md)
 - [Migration Summary](./MIGRATION_SUMMARY.md)
+- [Configuration Guide](./docs/configuration.md)
 - [Contributing Guidelines](./docs/README.md) (yakında)
 
 ## 🔐 Güvenlik

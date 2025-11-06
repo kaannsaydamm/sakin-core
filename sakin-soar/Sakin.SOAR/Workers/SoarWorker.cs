@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Sakin.Common.Audit;
 using Sakin.Common.Models.SOAR;
 using Sakin.Messaging.Consumer;
 using Sakin.SOAR.Services;
@@ -11,18 +12,18 @@ public class SoarWorker : BackgroundService
 {
     private readonly IKafkaConsumer _kafkaConsumer;
     private readonly IPlaybookExecutor _playbookExecutor;
-    private readonly IAuditService _auditService;
+    private readonly IAuditLogger _auditLogger;
     private readonly ILogger<SoarWorker> _logger;
 
     public SoarWorker(
         IKafkaConsumer kafkaConsumer,
         IPlaybookExecutor playbookExecutor,
-        IAuditService auditService,
+        IAuditLogger auditLogger,
         ILogger<SoarWorker> logger)
     {
         _kafkaConsumer = kafkaConsumer;
         _playbookExecutor = playbookExecutor;
-        _auditService = auditService;
+        _auditLogger = auditLogger;
         _logger = logger;
     }
 
@@ -74,11 +75,14 @@ public class SoarWorker : BackgroundService
 
     private async Task ProcessAlertAction(string messageJson, CancellationToken cancellationToken)
     {
+        AlertActionMessage? alertActionMessage = null;
+        var auditCorrelation = Guid.NewGuid();
+
         try
         {
             _logger.LogDebug("Processing alert action message: {Message}", messageJson);
 
-            var alertActionMessage = JsonSerializer.Deserialize<AlertActionMessage>(messageJson);
+            alertActionMessage = JsonSerializer.Deserialize<AlertActionMessage>(messageJson);
             if (alertActionMessage == null)
             {
                 _logger.LogWarning("Failed to deserialize alert action message");
@@ -120,28 +124,34 @@ public class SoarWorker : BackgroundService
                 }
             }
 
-            // Audit the processing
-            await _auditService.WriteAuditEventAsync(new
-            {
-                Type = "alert_action_processed",
-                AlertId = alertActionMessage.Alert.Id,
-                RuleId = alertActionMessage.Rule.Id,
-                PlaybookCount = playbookActions.Count,
-                ProcessedAt = DateTime.UtcNow
-            }, cancellationToken);
+            await _auditLogger.LogAuditEventAsync(
+                alertActionMessage.Alert.Source ?? "system",
+                "soar.alert_action.processed",
+                auditCorrelation,
+                new
+                {
+                    AlertId = alertActionMessage.Alert.Id,
+                    RuleId = alertActionMessage.Rule.Id,
+                    PlaybookCount = playbookActions.Count,
+                    ProcessedAt = DateTime.UtcNow
+                },
+                cancellationToken: cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to process alert action message: {Message}", messageJson);
             
-            // Audit the failure
-            await _auditService.WriteAuditEventAsync(new
-            {
-                Type = "alert_action_failed",
-                Message = messageJson,
-                Error = ex.Message,
-                FailedAt = DateTime.UtcNow
-            }, cancellationToken);
+            await _auditLogger.LogAuditEventAsync(
+                alertActionMessage?.Alert.Source ?? "system",
+                "soar.alert_action.failed",
+                auditCorrelation,
+                new
+                {
+                    Message = messageJson,
+                    Error = ex.Message,
+                    FailedAt = DateTime.UtcNow
+                },
+                cancellationToken: cancellationToken);
         }
     }
 

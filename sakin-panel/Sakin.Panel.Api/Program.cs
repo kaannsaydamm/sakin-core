@@ -1,12 +1,24 @@
+using Npgsql;
+using Sakin.Common.Configuration;
+using Sakin.Common.DependencyInjection;
+using Sakin.Common.Logging;
 using Sakin.Correlation.Persistence.DependencyInjection;
 using Sakin.Correlation.Services;
 using Sakin.Panel.Api.Services;
-using Sakin.Common.Cache;
-using Sakin.Common.DependencyInjection;
-using Sakin.Common.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+using Serilog;
+using OpenTelemetry.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, services, loggerConfiguration) =>
+{
+    TelemetryExtensions.ConfigureSakinSerilog(
+        loggerConfiguration,
+        context.Configuration,
+        context.HostingEnvironment.EnvironmentName);
+});
+
+builder.Services.AddSakinTelemetry(builder.Configuration);
 
 builder.Services.AddCors(options =>
 {
@@ -26,11 +38,9 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add database configuration
-builder.Services.AddScoped<NpgsqlConnection>(sp => 
+builder.Services.AddScoped<NpgsqlConnection>(_ =>
     new NpgsqlConnection(builder.Configuration.GetConnectionString("Postgres")));
 
-// Register Sakin services
 builder.Services.AddSakinCommon(builder.Configuration);
 builder.Services.AddCorrelationPersistence(builder.Configuration);
 builder.Services.Configure<AlertLifecycleOptions>(builder.Configuration.GetSection(AlertLifecycleOptions.SectionName));
@@ -47,12 +57,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseSerilogRequestLogging();
 app.UseCors();
-
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapPrometheusScrapingEndpoint();
 
 app.Run();

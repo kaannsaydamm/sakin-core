@@ -1,9 +1,12 @@
+using Confluent.Kafka;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Metrics;
 using Sakin.Common.Configuration;
 using Sakin.Common.DependencyInjection;
+using Sakin.Common.Logging;
 using Sakin.Ingest.Configuration;
 using Sakin.Ingest.Parsers;
 using Sakin.Ingest.Services;
@@ -12,92 +15,93 @@ using Sakin.Messaging.Configuration;
 using Sakin.Messaging.Consumer;
 using Sakin.Messaging.Producer;
 using Sakin.Messaging.Serialization;
+using Serilog;
 
-var host = Host.CreateDefaultBuilder(args)
-    .ConfigureAppConfiguration((context, config) =>
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddUserSecrets<Program>();
+}
+
+builder.Host.UseSerilog((context, services, loggerConfiguration) =>
+{
+    TelemetryExtensions.ConfigureSakinSerilog(
+        loggerConfiguration,
+        context.Configuration,
+        context.HostingEnvironment.EnvironmentName);
+});
+
+builder.Services.AddSakinTelemetry(builder.Configuration);
+
+builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection(KafkaOptions.SectionName));
+builder.Services.Configure<IngestKafkaOptions>(builder.Configuration.GetSection(IngestKafkaOptions.SectionName));
+builder.Services.Configure<GeoIpOptions>(builder.Configuration.GetSection(GeoIpOptions.SectionName));
+builder.Services.Configure<ThreatIntelOptions>(builder.Configuration.GetSection(ThreatIntelOptions.SectionName));
+builder.Services.Configure<RedisOptions>(builder.Configuration.GetSection(RedisOptions.SectionName));
+
+builder.Services.AddOptions<ConsumerOptions>()
+    .Configure<IConfiguration>((options, config) =>
     {
-        var env = context.HostingEnvironment;
+        var group = config.GetValue<string>("Kafka:ConsumerGroup");
+        var rawTopic = config.GetValue<string>("Kafka:RawEventsTopic");
 
-        config.SetBasePath(Directory.GetCurrentDirectory())
-              .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-              .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true, reloadOnChange: true)
-              .AddEnvironmentVariables();
+        options.GroupId = string.IsNullOrWhiteSpace(group) ? options.GroupId : group;
 
-        if (env.IsDevelopment())
-        {
-            config.AddUserSecrets<Program>();
-        }
-    })
-    .ConfigureServices((context, services) =>
+        var topicToUse = string.IsNullOrWhiteSpace(rawTopic)
+            ? (options.Topics.Length > 0 ? options.Topics[0] : "raw-events")
+            : rawTopic;
+
+        options.Topics = new[] { topicToUse };
+        options.EnableAutoCommit = false;
+        options.AutoOffsetReset = AutoOffsetReset.Earliest;
+    });
+
+builder.Services.AddOptions<ProducerOptions>()
+    .Configure<IConfiguration>((options, config) =>
     {
-        var configuration = context.Configuration;
+        var normalizedTopic = config.GetValue<string>("Kafka:NormalizedEventsTopic");
+        options.DefaultTopic = string.IsNullOrWhiteSpace(normalizedTopic) ? options.DefaultTopic : normalizedTopic;
+    });
 
-        services.Configure<KafkaOptions>(configuration.GetSection(KafkaOptions.SectionName));
-        services.Configure<IngestKafkaOptions>(configuration.GetSection(IngestKafkaOptions.SectionName));
-        services.Configure<GeoIpOptions>(configuration.GetSection(GeoIpOptions.SectionName));
-        services.Configure<ThreatIntelOptions>(configuration.GetSection(ThreatIntelOptions.SectionName));
-        services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
+builder.Services.AddSingleton<IMessageSerializer, JsonMessageSerializer>();
+builder.Services.AddSingleton<IKafkaProducer, KafkaProducer>();
+builder.Services.AddSingleton<IKafkaConsumer, KafkaConsumer>();
 
-        services.AddOptions<ConsumerOptions>()
-            .Configure<IConfiguration>((options, config) =>
-            {
-                var group = config.GetValue<string>("Kafka:ConsumerGroup");
-                var rawTopic = config.GetValue<string>("Kafka:RawEventsTopic");
+builder.Services.AddRedisClient();
 
-                options.GroupId = string.IsNullOrWhiteSpace(group) ? options.GroupId : group;
+builder.Services.AddMemoryCache(options =>
+{
+    options.SizeLimit = 10000;
+});
 
-                var topicToUse = string.IsNullOrWhiteSpace(rawTopic)
-                    ? (options.Topics.Length > 0 ? options.Topics[0] : "raw-events")
-                    : rawTopic;
+builder.Services.AddSingleton<IGeoIpService, GeoIpService>();
+builder.Services.AddSingleton<IAssetCacheService, AssetCacheService>();
 
-                options.Topics = new[] { topicToUse };
-                options.EnableAutoCommit = false;
-                options.AutoOffsetReset = AutoOffsetReset.Earliest;
-            });
+builder.Services.AddSingleton<ParserRegistry>(sp =>
+{
+    var registry = new ParserRegistry();
+    registry.Register(new WindowsEventLogParser());
+    registry.Register(new SyslogParser());
+    registry.Register(new ApacheAccessLogParser());
+    registry.Register(new FortinetLogParser());
+    return registry;
+});
 
-        services.AddOptions<ProducerOptions>()
-            .Configure<IConfiguration>((options, config) =>
-            {
-                var normalizedTopic = config.GetValue<string>("Kafka:NormalizedEventsTopic");
-                options.DefaultTopic = string.IsNullOrWhiteSpace(normalizedTopic) ? options.DefaultTopic : normalizedTopic;
-            });
+builder.Services.AddHostedService<EventIngestWorker>();
 
-        services.AddSingleton<IMessageSerializer, JsonMessageSerializer>();
-        services.AddSingleton<IKafkaProducer, KafkaProducer>();
-        services.AddSingleton<IKafkaConsumer, KafkaConsumer>();
+var app = builder.Build();
 
-        services.AddRedisClient();
+app.UseSerilogRequestLogging();
+app.MapPrometheusScrapingEndpoint();
+app.MapGet("/healthz", () => Results.Ok("healthy"));
 
-        // Add memory caching with size limit
-        services.AddMemoryCache(options =>
-        {
-            options.SizeLimit = 10000; // Default cache size limit
-        });
+await app.RunAsync();
 
-        // Register GeoIP service as singleton since DatabaseReader is expensive
-        services.AddSingleton<IGeoIpService, GeoIpService>();
-
-        // Register Asset Cache Service
-        services.AddSingleton<IAssetCacheService, AssetCacheService>();
-
-        services.AddSingleton<ParserRegistry>(sp =>
-        {
-            var registry = new ParserRegistry();
-            registry.Register(new WindowsEventLogParser());
-            registry.Register(new SyslogParser());
-            registry.Register(new ApacheAccessLogParser());
-            registry.Register(new FortinetLogParser());
-            return registry;
-        });
-
-        services.AddHostedService<EventIngestWorker>();
-    })
-    .ConfigureLogging((context, logging) =>
-    {
-        logging.ClearProviders();
-        logging.AddConfiguration(context.Configuration.GetSection("Logging"));
-        logging.AddConsole();
-    })
-    .Build();
-
-await host.RunAsync();
+public partial class Program;
