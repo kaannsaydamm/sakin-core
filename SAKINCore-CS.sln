@@ -59,6 +59,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Analytics.ClickHouseS
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Analytics.BaselineWorker", "sakin-analytics\Sakin.Analytics.BaselineWorker\Sakin.Analytics.BaselineWorker.csproj", "{1K2L3H4G-5H6I-7J8K-9L0M-1N2O3P4Q5R6S}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sakin.Integration.Tests", "tests\Sakin.Integration.Tests\Sakin.Integration.Tests.csproj", "{2L3M4I5H-6I7J-8K9L-0M1N-2O3P4Q5R6S7T}"
+EndProject
 Global
     GlobalSection(SolutionConfigurationPlatforms) = preSolution
         Debug|Any CPU = Debug|Any CPU
@@ -141,6 +143,10 @@ Global
         {1K2L3H4G-5H6I-7J8K-9L0M-1N2O3P4Q5R6S}.Debug|Any CPU.Build.0 = Debug|Any CPU
         {1K2L3H4G-5H6I-7J8K-9L0M-1N2O3P4Q5R6S}.Release|Any CPU.ActiveCfg = Release|Any CPU
         {1K2L3H4G-5H6I-7J8K-9L0M-1N2O3P4Q5R6S}.Release|Any CPU.Build.0 = Release|Any CPU
+        {2L3M4I5H-6I7J-8K9L-0M1N-2O3P4Q5R6S7T}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {2L3M4I5H-6I7J-8K9L-0M1N-2O3P4Q5R6S7T}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {2L3M4I5H-6I7J-8K9L-0M1N-2O3P4Q5R6S7T}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {2L3M4I5H-6I7J-8K9L-0M1N-2O3P4Q5R6S7T}.Release|Any CPU.Build.0 = Release|Any CPU
     EndGlobalSection
     GlobalSection(SolutionProperties) = preSolution
         HideSolutionNode = FALSE
@@ -163,5 +169,6 @@ Global
         {8H9I0F1E-2D3E-4F5G-6H7I-8J9K0L1M2N3O} = {7G8H9E0D-1C2D-3E4F-5G6H-7I8J9K0L1M2N}
         {0J1K2G3F-4G5H-6I7J-8K9L-0M1N2O3P4Q5R} = {9I0J1F2E-3F4G-5H6I-7J8K-9L0M1N2O3P4Q}
         {1K2L3H4G-5H6I-7J8K-9L0M-1N2O3P4Q5R6S} = {9I0J1F2E-3F4G-5H6I-7J8K-9L0M1N2O3P4Q}
+        {2L3M4I5H-6I7J-8K9L-0M1N-2O3P4Q5R6S7T} = {D5C301AC-C323-41A2-A1FD-72D0A658CBF0}
     EndGlobalSection
 EndGlobal
