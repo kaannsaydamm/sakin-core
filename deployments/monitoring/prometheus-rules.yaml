@@ -1,0 +1,361 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-sakin-rules
+  namespace: monitoring
+data:
+  sakin-alerts.yml: |
+    groups:
+    - name: sakin_security
+      interval: 30s
+      rules:
+      # Authentication & Authorization
+      - alert: SakinHighFailedAuthRate
+        expr: rate(sakin_auth_failures_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High authentication failure rate"
+          description: "Failed auth attempts: {{ $value | humanize }}/sec for service {{ $labels.service }}"
+      
+      - alert: SakinUnauthorizedAccessAttempt
+        expr: increase(sakin_authorization_denied_total[5m]) > 20
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Multiple unauthorized access attempts"
+          description: "{{ $value }} denied authorization requests in 5 minutes"
+      
+      - alert: SakinSuspiciousAPIAccess
+        expr: rate(sakin_api_requests_total{status=~"4..|5.."}[15m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High rate of API errors from {{ $labels.client }}"
+          description: "Error rate: {{ $value | humanizePercentage }}"
+      
+      # Certificate Expiration
+      - alert: SakinCertificateExpiringSoon
+        expr: (sakin_tls_certificate_expiry_seconds - time()) < 2592000  # 30 days
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "TLS certificate expiring soon"
+          description: "Certificate {{ $labels.cert_name }} expires in {{ $value | humanizeDuration }}"
+      
+      - alert: SakinCertificateExpired
+        expr: (sakin_tls_certificate_expiry_seconds - time()) < 0
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "TLS certificate EXPIRED"
+          description: "Certificate {{ $labels.cert_name }} expired {{ $value | humanizeDuration }} ago"
+    
+    - name: sakin_services
+      interval: 30s
+      rules:
+      # Service Health
+      - alert: SakinServiceDown
+        expr: up{job=~"sakin-.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: infrastructure
+        annotations:
+          summary: "S.A.K.I.N. service {{ $labels.job }} is down"
+          description: "Service has been unavailable for 2 minutes"
+      
+      - alert: SakinServiceHighLatency
+        expr: histogram_quantile(0.95, rate(sakin_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "High latency for {{ $labels.service }}"
+          description: "P95 latency: {{ $value | humanizeDuration }}"
+      
+      - alert: SakinServiceHighErrorRate
+        expr: rate(sakin_errors_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: reliability
+        annotations:
+          summary: "High error rate in {{ $labels.service }}"
+          description: "Error rate: {{ $value | humanize }}/sec"
+      
+      # Resource Usage
+      - alert: SakinPodMemoryHigh
+        expr: (container_memory_working_set_bytes{namespace="sakin"} / container_spec_memory_limit_bytes{namespace="sakin"}) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: resources
+        annotations:
+          summary: "Pod {{ $labels.pod }} memory usage high"
+          description: "Memory usage: {{ $value | humanizePercentage }}"
+      
+      - alert: SakinPodCPUHigh
+        expr: (rate(container_cpu_usage_seconds_total{namespace="sakin"}[5m]) / container_spec_cpu_quota{namespace="sakin"} * container_spec_cpu_period{namespace="sakin"}) > 0.80
+        for: 10m
+        labels:
+          severity: warning
+          component: resources
+        annotations:
+          summary: "Pod {{ $labels.pod }} CPU usage high"
+          description: "CPU usage: {{ $value | humanizePercentage }}"
+      
+      - alert: SakinPodOOMKilled
+        expr: increase(kube_pod_container_status_terminated_reason{namespace="sakin",reason="OOMKilled"}[5m]) > 0
+        labels:
+          severity: critical
+          component: resources
+        annotations:
+          summary: "Pod {{ $labels.pod }} killed by OOM"
+          description: "Pod exceeded memory limit and was terminated"
+      
+      - alert: SakinPodRestartingFrequently
+        expr: rate(kube_pod_container_status_restarts_total{namespace="sakin"}[15m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: reliability
+        annotations:
+          summary: "Pod {{ $labels.pod }} restarting frequently"
+          description: "Restart rate: {{ $value | humanize }}/sec"
+    
+    - name: sakin_data_pipeline
+      interval: 30s
+      rules:
+      # Event Ingestion
+      - alert: SakinNoEventsIngested
+        expr: rate(sakin_events_ingested_total[5m]) == 0
+        for: 10m
+        labels:
+          severity: critical
+          component: ingestion
+        annotations:
+          summary: "No events ingested in 10 minutes"
+          description: "Event ingestion may be broken"
+      
+      - alert: SakinEventIngestionLag
+        expr: sakin_event_processing_lag_seconds > 60
+        for: 5m
+        labels:
+          severity: warning
+          component: ingestion
+        annotations:
+          summary: "Event ingestion lagging"
+          description: "Processing lag: {{ $value | humanizeDuration }}"
+      
+      # Correlation
+      - alert: SakinHighAlertRate
+        expr: rate(sakin_alerts_created_total[1m]) > 10000
+        for: 2m
+        labels:
+          severity: warning
+          component: correlation
+        annotations:
+          summary: "Alert storm detected"
+          description: "Alert creation rate: {{ $value | humanize }}/sec"
+      
+      - alert: SakinCorrelationEngineStalled
+        expr: rate(sakin_rules_evaluated_total[5m]) == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: correlation
+        annotations:
+          summary: "Correlation engine not evaluating rules"
+          description: "No rule evaluations in 5 minutes"
+      
+      # Kafka
+      - alert: SakinKafkaConsumerLagHigh
+        expr: sakin_kafka_consumer_lag_messages > 10000
+        for: 5m
+        labels:
+          severity: warning
+          component: kafka
+        annotations:
+          summary: "High Kafka consumer lag"
+          description: "Consumer lag: {{ $value | humanize }} messages for {{ $labels.consumer_group }}"
+      
+      - alert: SakinKafkaConsumerStalled
+        expr: rate(sakin_kafka_messages_consumed_total[5m]) == 0
+        for: 10m
+        labels:
+          severity: critical
+          component: kafka
+        annotations:
+          summary: "Kafka consumer stalled"
+          description: "No messages consumed by {{ $labels.consumer_group }} in 10 minutes"
+    
+    - name: sakin_database
+      interval: 30s
+      rules:
+      # PostgreSQL
+      - alert: SakinPostgresDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL database unavailable"
+      
+      - alert: SakinPostgresHighConnections
+        expr: (pg_stat_activity_count / pg_settings_max_connections) > 0.80
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "PostgreSQL connection pool near limit"
+          description: "Connection usage: {{ $value | humanizePercentage }}"
+      
+      - alert: SakinPostgresSlowQueries
+        expr: rate(pg_stat_statements_mean_exec_time[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "PostgreSQL slow queries detected"
+          description: "Mean query time: {{ $value | humanizeDuration }}"
+      
+      - alert: SakinPostgresReplicationLag
+        expr: pg_replication_lag_seconds > 30
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "PostgreSQL replication lagging"
+          description: "Replication lag: {{ $value | humanizeDuration }}"
+      
+      # Redis
+      - alert: SakinRedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: cache
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache unavailable"
+      
+      - alert: SakinRedisMemoryHigh
+        expr: (redis_memory_used_bytes / redis_memory_max_bytes) > 0.90
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Redis memory usage high"
+          description: "Memory usage: {{ $value | humanizePercentage }}"
+      
+      - alert: SakinRedisEvicting
+        expr: rate(redis_evicted_keys_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Redis evicting keys frequently"
+          description: "Eviction rate: {{ $value | humanize }}/sec"
+      
+      # ClickHouse
+      - alert: SakinClickHouseDown
+        expr: clickhouse_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: analytics
+        annotations:
+          summary: "ClickHouse is down"
+          description: "ClickHouse analytics database unavailable"
+      
+      - alert: SakinClickHouseSlowQueries
+        expr: histogram_quantile(0.95, rate(clickhouse_query_duration_seconds_bucket[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: analytics
+        annotations:
+          summary: "ClickHouse queries slow"
+          description: "P95 query time: {{ $value | humanizeDuration }}"
+    
+    - name: sakin_storage
+      interval: 30s
+      rules:
+      - alert: SakinPVCAlmostFull
+        expr: (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: storage
+        annotations:
+          summary: "PVC {{ $labels.persistentvolumeclaim }} almost full"
+          description: "Disk usage: {{ $value | humanizePercentage }}"
+      
+      - alert: SakinPVCFull
+        expr: (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) > 0.95
+        for: 1m
+        labels:
+          severity: critical
+          component: storage
+        annotations:
+          summary: "PVC {{ $labels.persistentvolumeclaim }} critically full"
+          description: "Disk usage: {{ $value | humanizePercentage }}"
+      
+      - alert: SakinNodeDiskPressure
+        expr: kube_node_status_condition{condition="DiskPressure",status="true"} == 1
+        for: 5m
+        labels:
+          severity: critical
+          component: storage
+        annotations:
+          summary: "Node {{ $labels.node }} has disk pressure"
+          description: "Node is running out of disk space"
+    
+    - name: sakin_business_metrics
+      interval: 1m
+      rules:
+      - alert: SakinAnomalyDetectionFailing
+        expr: rate(sakin_anomaly_detection_errors_total[10m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: ml
+        annotations:
+          summary: "Anomaly detection failing frequently"
+          description: "Error rate: {{ $value | humanize }}/sec"
+      
+      - alert: SakinPlaybookExecutionFailing
+        expr: rate(sakin_playbook_execution_failed_total[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: soar
+        annotations:
+          summary: "High playbook execution failure rate"
+          description: "Failure rate: {{ $value | humanize }}/sec"
+      
+      - alert: SakinNoAlertsCreated
+        expr: rate(sakin_alerts_created_total[15m]) == 0
+        for: 30m
+        labels:
+          severity: warning
+          component: correlation
+        annotations:
+          summary: "No alerts created in 30 minutes"
+          description: "This may indicate rules not firing or events not flowing"
