@@ -36,7 +36,7 @@ jobs:
             
       - name: Restore dependencies
         run: dotnet restore SAKINCore-CS.sln
-        
+
       - name: Build solution
         run: dotnet build SAKINCore-CS.sln --configuration Release --no-restore
         
@@ -52,3 +52,102 @@ jobs:
           
       - name: Check code formatting
         run: dotnet format SAKINCore-CS.sln --verify-no-changes --verbosity diagnostic
+
+  build-linux-agent:
+    name: Build Linux Agent
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+          
+      - name: Build Linux Agent
+        run: |
+          dotnet publish sakin-agent-linux/Sakin.Agent.Linux/Sakin.Agent.Linux.csproj \
+            -c Release \
+            -o sakin-agent-linux/Sakin.Agent.Linux/bin/Release/net8.0/publish \
+            -p:Version="${{ github.event.release.tag_name || 'dev' }}"
+          
+      - name: Create Release Tarball
+        run: |
+          cd sakin-agent-linux/Sakin.Agent.Linux/bin/Release/net8.0/publish
+          tar -czvf ../../../../artifacts/bin/sakin-agent-linux.tar.gz .
+          
+      - name: Upload Linux Agent
+        uses: actions/upload-artifact@v4
+        with:
+          name: sakin-agent-linux
+          path: artifacts/bin/sakin-agent-linux.tar.gz
+
+  build-windows-agent:
+    name: Build Windows Agent
+    runs-on: windows-latest
+    needs: build-and-test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+          
+      - name: Build Windows Agent
+        run: |
+          dotnet publish sakin-collectors/Sakin.Agents.Windows/Sakin.Agents.Windows.csproj \
+            -c Release \
+            -o sakin-collectors/Sakin.Agents.Windows/bin/Release/net8.0-windows/publish \
+            -p:Version="${{ github.event.release.tag_name || 'dev' }}"
+          
+      - name: Upload Windows Agent
+        uses: actions/upload-artifact@v4
+        with:
+          name: sakin-agent-windows
+          path: sakin-collectors/Sakin.Agents.Windows/bin/Release/net8.0-windows/publish/
+
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build-linux-agent, build-windows-agent]
+    if: github.event_name == 'release' && github.event.action == 'created'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download Linux Agent
+        uses: actions/download-artifact@v4
+        with:
+          name: sakin-agent-linux
+          path: artifacts/bin/
+          
+      - name: Download Windows Agent
+        uses: actions/download-artifact@v4
+        with:
+          name: sakin-agent-windows
+          path: artifacts/bin/
+          
+      - name: Create Installer Scripts
+        run: |
+          # Create Linux installer package
+          cd artifacts/bin
+          tar -czvf sakin-agent-linux-v${GITHUB_TAG_NAME}.tar.gz -C sakin-agent-linux .
+          rm -rf sakin-agent-linux
+          
+          # Create Windows zip
+          7z a sakin-agent-windows-v${GITHUB_TAG_NAME}.zip ./sakin-agent-windows/
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/bin/sakin-agent-*.tar.gz artifacts/bin/sakin-agent-*.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

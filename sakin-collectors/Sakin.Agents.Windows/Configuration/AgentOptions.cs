@@ -17,4 +17,13 @@ namespace Sakin.Agents.Windows.Configuration
         public string ScriptsDirectory { get; set; } = "scripts";
         public TimeSpan CommandExpireTime { get; set; } = TimeSpan.FromMinutes(5);
     }
+
+    public class SakinOptions
+    {
+        public const string SectionName = "Sakin";
+
+        public string IngestEndpoint { get; set; } = string.Empty;
+        public string AgentToken { get; set; } = string.Empty;
+        public string AgentName { get; set; } = Environment.MachineName;
+    }
 }

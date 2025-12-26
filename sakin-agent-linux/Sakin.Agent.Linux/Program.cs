@@ -38,6 +38,7 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
 builder.Services.AddSakinTelemetry(builder.Configuration);
 
 builder.Services.Configure<AgentOptions>(builder.Configuration.GetSection(AgentOptions.SectionName));
+builder.Services.Configure<SakinOptions>(builder.Configuration.GetSection(SakinOptions.SectionName));
 builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection(KafkaOptions.SectionName));
 builder.Services.Configure<ProducerOptions>(builder.Configuration.GetSection(ProducerOptions.SectionName));
 
