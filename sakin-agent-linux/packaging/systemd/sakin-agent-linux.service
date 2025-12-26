@@ -20,10 +20,14 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/sakin-agent/logs /opt/sakin-agent/scripts
+ReadWritePaths=/opt/sakin-agent/logs /opt/sakin-agent/scripts /var/log/sakin-agent /var/lib/sakin-agent
 RestrictSUIDSGID=true
 RemoveIPC=true
 PrivateDevices=true
+MemoryDenyWriteExecute=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+ProtectKernelModules=true
 
 # Resource limits
 LimitNOFILE=65536
