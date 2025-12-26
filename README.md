@@ -326,7 +326,7 @@ S.A.K.I.N. is licensed under the **MIT License** — see [LICENSE](./LICENSE) fo
 
 - Built for SOC teams managing modern threat landscapes
 - Inspired by Splunk, Elasticsearch-based SIEMs, Wazuh
-- Contributors: [@kaannsaydamm](https://github.com/kaannsaydamm) and community
+- Contributors: [@kaannsaydamm](https://github.com/kaannsaydamm), [@atailh4n](https://github.com/atailh4n)
 
 ---
 
